@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -290,6 +291,71 @@ export default function MovieDetailPage() {
       setLoading(false);
     }
   }, [movieId]);
+
+  // Load existing user rating from movie_preferences
+  useEffect(() => {
+    const userId = localStorage.getItem("cinecircle_user_id");
+    if (!userId || !movieId) return;
+
+    supabase
+      .from("movie_preferences")
+      .select("rating, preference")
+      .eq("user_id", userId)
+      .eq("tmdb_id", Number(movieId))
+      .single()
+      .then(({ data }) => {
+        if (data?.rating) setUserRating(data.rating);
+        if (data?.preference === "liked") setWatched(true);
+      });
+  }, [movieId]);
+
+  // Save rating to movie_preferences
+  const handleRate = useCallback(
+    async (star: number) => {
+      const newRating = star === userRating ? 0 : star;
+      setUserRating(newRating);
+
+      const userId = localStorage.getItem("cinecircle_user_id");
+      if (!userId || !movie) return;
+
+      if (newRating === 0) {
+        // User cleared their rating — remove the row if it was a 'rated' only entry
+        // but keep it if it was liked/disliked from onboarding
+        await supabase
+          .from("movie_preferences")
+          .update({ rating: null })
+          .eq("user_id", userId)
+          .eq("tmdb_id", movie.id);
+        return;
+      }
+
+      // Upsert: if a preference already exists for this movie, add/update rating
+      // If not, create a new 'rated' entry
+      const { data: existing } = await supabase
+        .from("movie_preferences")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("tmdb_id", movie.id)
+        .single();
+
+      if (existing) {
+        await supabase
+          .from("movie_preferences")
+          .update({ rating: newRating })
+          .eq("id", existing.id);
+      } else {
+        await supabase.from("movie_preferences").insert({
+          user_id: userId,
+          movie_title: movie.title,
+          movie_genre: movie.genres,
+          tmdb_id: movie.id,
+          preference: "rated",
+          rating: newRating,
+        });
+      }
+    },
+    [userRating, movie]
+  );
 
   useEffect(() => {
     if (movieId) fetchMovie();
@@ -616,9 +682,7 @@ export default function MovieDetailPage() {
               <div className="flex flex-col items-center">
                 <StarRating
                   rating={userRating}
-                  onRate={(star) =>
-                    setUserRating(star === userRating ? 0 : star)
-                  }
+                  onRate={handleRate}
                   size={36}
                 />
                 <p className="text-white/40 text-xs mt-2">
