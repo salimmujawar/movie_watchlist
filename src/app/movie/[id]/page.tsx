@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import Navbar, { UserProfile } from "@/components/Navbar";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -278,6 +279,35 @@ export default function MovieDetailPage() {
   const [userRating, setUserRating] = useState(0);
   const [inWatchlist, setInWatchlist] = useState(false);
   const [watched, setWatched] = useState(false);
+  const [user, setUser] = useState<UserProfile | null>(null);
+
+  // Load user profile for navbar
+  useEffect(() => {
+    const loadUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data } = await supabase
+          .from("users")
+          .select("id, name, first_name, email, profile_image, onboarding_completed")
+          .eq("google_id", session.user.id)
+          .single();
+        if (data) {
+          setUser(data as UserProfile);
+          return;
+        }
+      }
+      const userId = localStorage.getItem("cinecircle_user_id");
+      if (userId) {
+        const { data } = await supabase
+          .from("users")
+          .select("id, name, first_name, email, profile_image, onboarding_completed")
+          .eq("id", userId)
+          .single();
+        if (data) setUser(data as UserProfile);
+      }
+    };
+    loadUser();
+  }, []);
 
   const fetchMovie = useCallback(async () => {
     try {
@@ -466,8 +496,11 @@ export default function MovieDetailPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
+      {/* ── Navbar ──────────────────────────────────────────────────────────── */}
+      <Navbar user={user} />
+
       {/* ── Backdrop ────────────────────────────────────────────────────────── */}
-      <div className="relative w-full h-[350px] sm:h-[420px]">
+      <div className="relative w-full h-[350px] sm:h-[420px] mt-[56px]">
         {movie.backdrop_path ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -485,7 +518,7 @@ export default function MovieDetailPage() {
         {/* Back button */}
         <button
           onClick={() => router.back()}
-          className="absolute top-5 left-5 z-20 w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-white/20"
+          className="absolute top-4 left-5 z-20 w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-white/20"
           style={{
             background: "rgba(0,0,0,0.5)",
             backdropFilter: "blur(8px)",
