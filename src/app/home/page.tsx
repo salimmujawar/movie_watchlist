@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useSession, signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
 
 function Logo() {
   return (
@@ -59,7 +57,6 @@ function SearchBox() {
 }
 
 function ProfileMenu() {
-  const { data: session } = useSession();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -73,36 +70,20 @@ function ProfileMenu() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Extract user info from session, fallback to defaults
-  const userName = session?.user?.name || "User";
-  const userEmail = session?.user?.email || "";
-  const userImage = session?.user?.image;
-  const userInitial = userName.charAt(0).toUpperCase();
-
   return (
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
         className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-white/20 cursor-pointer hover:ring-white/40 transition-all"
       >
-        {userImage ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={userImage}
-            alt={userName}
-            className="w-full h-full object-cover"
-            referrerPolicy="no-referrer"
-          />
-        ) : (
-          <div
-            className="w-full h-full flex items-center justify-center text-white font-semibold text-xs"
-            style={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            }}
-          >
-            {userInitial}
-          </div>
-        )}
+        <div
+          className="w-full h-full flex items-center justify-center text-white font-semibold text-xs"
+          style={{
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          }}
+        >
+          A
+        </div>
       </button>
 
       {open && (
@@ -115,29 +96,17 @@ function ProfileMenu() {
         >
           {/* User info header */}
           <div className="px-4 py-3 border-b border-white/10 flex items-center gap-3">
-            {userImage ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={userImage}
-                alt={userName}
-                className="w-10 h-10 rounded-full object-cover shrink-0"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0"
-                style={{
-                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                }}
-              >
-                {userInitial}
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="text-sm text-white font-medium truncate">{userName}</p>
-              {userEmail && (
-                <p className="text-xs text-white/40 truncate">{userEmail}</p>
-              )}
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0"
+              style={{
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              }}
+            >
+              A
+            </div>
+            <div>
+              <p className="text-sm text-white font-medium">Alex</p>
+              <p className="text-xs text-white/40">alex@email.com</p>
             </div>
           </div>
 
@@ -160,12 +129,9 @@ function ProfileMenu() {
             </button>
           </div>
 
-          {/* Logout — signs out and redirects to login page */}
+          {/* Logout */}
           <div className="border-t border-white/10 py-1">
-            <button
-              onClick={() => signOut({ callbackUrl: "/" })}
-              className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-red-500/10 transition-colors text-left"
-            >
+            <button className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-red-500/10 transition-colors text-left">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e54" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                 <polyline points="16 17 21 12 16 7" />
@@ -628,9 +594,6 @@ function TrendingCarousel() {
 }
 
 function Navbar() {
-  const { data: session } = useSession();
-  const firstName = session?.user?.name?.split(" ")[0] || "User";
-
   return (
     <nav
       className="fixed top-0 left-0 right-0 z-50 px-4 sm:px-6 py-3"
@@ -663,7 +626,7 @@ function Navbar() {
         {/* Right: Welcome + Profile + Bell */}
         <div className="flex items-center gap-3 sm:gap-4 shrink-0">
           <span className="text-white/70 text-sm hidden md:block whitespace-nowrap">
-            Welcome, <span className="text-white font-medium">{firstName}</span>
+            Welcome, <span className="text-white font-medium">Alex</span>
           </span>
 
           <ProfileMenu />
@@ -674,35 +637,7 @@ function Navbar() {
   );
 }
 
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
-}
-
 export default function HomePage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
-
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.replace("/");
-    }
-  }, [status, router]);
-
-  // Show loading spinner while checking auth
-  if (status === "loading" || !session) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="w-10 h-10 border-2 border-white/20 border-t-red-500 rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  const firstName = session.user?.name?.split(" ")[0] || "User";
-
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       <Navbar />
@@ -711,7 +646,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto">
           <section className="py-8">
             <h2 className="text-2xl sm:text-3xl font-bold mb-2">
-              {getGreeting()}, {firstName}
+              Good evening, Alex
             </h2>
             <p className="text-white/50 text-sm sm:text-base">
               Discover what to watch next from your circle.
