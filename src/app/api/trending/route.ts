@@ -8,7 +8,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const TMDB_API_KEY = process.env.TMDB_CLIENT_ID!;
+const TMDB_ACCESS_TOKEN = process.env.TMDB_ACCESS_TOKEN!;
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 
 interface TMDBMovie {
@@ -68,9 +68,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ── Step 2: Fetch from TMDB API ────────────────────────────────────────
-    const tmdbUrl = `${TMDB_BASE_URL}/trending/movie/day?api_key=${TMDB_API_KEY}&language=en-US`;
-    const tmdbResponse = await fetch(tmdbUrl);
+    // ── Step 2: Fetch from TMDB API (v4 Bearer auth) ─────────────────────
+    const tmdbUrl = `${TMDB_BASE_URL}/trending/movie/day?language=en-US`;
+    const tmdbResponse = await fetch(tmdbUrl, {
+      headers: {
+        Authorization: `Bearer ${TMDB_ACCESS_TOKEN}`,
+        Accept: "application/json",
+      },
+    });
 
     if (!tmdbResponse.ok) {
       console.error("TMDB API error:", tmdbResponse.status);
