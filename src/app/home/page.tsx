@@ -435,6 +435,164 @@ function FromYourCircleCarousel() {
   );
 }
 
+interface TrendingMovie {
+  title: string;
+  year: number;
+  rating: number;
+  poster: string;
+  rank: number;
+}
+
+const TRENDING_MOVIES: TrendingMovie[] = [
+  { title: "Dune: Part Two", year: 2024, rating: 8.6, poster: "https://image.tmdb.org/t/p/w500/8b8R8l88Qje9dn9OE8PY05Nez7S.jpg", rank: 1 },
+  { title: "Oppenheimer", year: 2023, rating: 8.9, poster: "https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg", rank: 2 },
+  { title: "Deadpool & Wolverine", year: 2024, rating: 7.8, poster: "https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg", rank: 3 },
+  { title: "Inside Out 2", year: 2024, rating: 7.6, poster: "https://image.tmdb.org/t/p/w500/vpnVM9B6NMmQpWeZvzLvDESb2QY.jpg", rank: 4 },
+  { title: "The Batman", year: 2022, rating: 7.8, poster: "https://image.tmdb.org/t/p/w500/74xTEgt7R36Fpooo50r9T25onhq.jpg", rank: 5 },
+  { title: "Spider-Verse", year: 2023, rating: 8.7, poster: "https://image.tmdb.org/t/p/w500/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg", rank: 6 },
+  { title: "Interstellar", year: 2014, rating: 8.7, poster: "https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg", rank: 7 },
+  { title: "John Wick 4", year: 2023, rating: 7.7, poster: "https://image.tmdb.org/t/p/w500/vZloFAK7NmvMGKE7VkF5UHaz0I.jpg", rank: 8 },
+  { title: "Barbie", year: 2023, rating: 6.8, poster: "https://image.tmdb.org/t/p/w500/iuFNMS8U5cb6xfzi51Dbkovj7vM.jpg", rank: 9 },
+  { title: "Killers of the Flower Moon", year: 2023, rating: 7.6, poster: "https://image.tmdb.org/t/p/w500/dB6Krk806zeqd0YNp2ngQ9zXteH.jpg", rank: 10 },
+];
+
+function TrendingMovieCard({ movie }: { movie: TrendingMovie }) {
+  return (
+    <div className="shrink-0 w-[160px] sm:w-[180px] group cursor-pointer">
+      <div className="relative aspect-[2/3] rounded-xl overflow-hidden mb-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={movie.poster}
+          alt={movie.title}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          loading="lazy"
+        />
+
+        {/* Rating badge */}
+        <div
+          className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold"
+          style={{
+            background: "rgba(0,0,0,0.7)",
+            backdropFilter: "blur(8px)",
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="#facc15">
+            <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+          </svg>
+          <span className="text-white">{movie.rating}</span>
+        </div>
+
+        {/* Trending badge at bottom */}
+        <div className="absolute bottom-0 left-0 right-0 p-2">
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-white"
+            style={{
+              background: "linear-gradient(135deg, rgba(229,9,20,0.85) 0%, rgba(220,38,38,0.85) 100%)",
+              backdropFilter: "blur(8px)",
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+              <polyline points="17 6 23 6 23 12" />
+            </svg>
+            Trending
+          </div>
+        </div>
+
+        {/* Rank number */}
+        <div
+          className="absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white"
+          style={{
+            background: "rgba(0,0,0,0.7)",
+            backdropFilter: "blur(8px)",
+          }}
+        >
+          {movie.rank}
+        </div>
+
+        <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
+
+      <div className="px-1">
+        <p className="text-white text-sm font-medium truncate">{movie.title}</p>
+        <p className="text-white/40 text-xs">{movie.year}</p>
+      </div>
+    </div>
+  );
+}
+
+function TrendingCarousel() {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const checkScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 10);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 10);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    checkScroll();
+    el.addEventListener("scroll", checkScroll, { passive: true });
+    return () => el.removeEventListener("scroll", checkScroll);
+  }, [checkScroll]);
+
+  const scroll = (dir: "left" | "right") => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir === "left" ? -380 : 380, behavior: "smooth" });
+  };
+
+  return (
+    <section className="py-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <span className="text-red-500">&#9679;</span>
+          Trending Now
+        </h3>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => scroll("left")}
+            disabled={!canScrollLeft}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-all disabled:opacity-20 hover:bg-white/10"
+            style={{ border: "1px solid rgba(255,255,255,0.15)" }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <button
+            onClick={() => scroll("right")}
+            disabled={!canScrollRight}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-all disabled:opacity-20 hover:bg-white/10"
+            style={{ border: "1px solid rgba(255,255,255,0.15)" }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div
+        ref={scrollRef}
+        className="flex gap-4 overflow-x-auto overflow-y-visible pb-2 scrollbar-hide"
+        style={{ scrollSnapType: "x mandatory", scrollbarWidth: "none" }}
+      >
+        {TRENDING_MOVIES.map((movie) => (
+          <div key={movie.title} style={{ scrollSnapAlign: "start" }}>
+            <TrendingMovieCard movie={movie} />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function Navbar() {
   return (
     <nav
@@ -495,24 +653,7 @@ export default function HomePage() {
             </p>
           </section>
 
-          <section className="py-6">
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <span className="text-red-500">&#9679;</span>
-              Trending Now
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="aspect-[2/3] rounded-lg animate-pulse"
-                  style={{
-                    background: "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
-                    border: "1px solid rgba(255,255,255,0.06)",
-                  }}
-                />
-              ))}
-            </div>
-          </section>
+          <TrendingCarousel />
 
           <FromYourCircleCarousel />
         </div>
