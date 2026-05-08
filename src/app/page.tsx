@@ -1,113 +1,183 @@
-import Image from 'next/image'
+"use client";
 
-export default function Home() {
+import { useRouter } from "next/navigation";
+
+function Background() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+    <div className="fixed inset-0">
+      <div className="absolute inset-0 bg-[#0a0a0a]" />
+      {/* Subtle cinematic vignette */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse at center, rgba(30,30,30,0.3) 0%, transparent 50%, rgba(0,0,0,0.5) 100%)",
+        }}
+      />
+    </div>
+  );
+}
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
+function CineCircleLogo() {
+  return (
+    <div
+      className="flex flex-col items-center"
+      style={{ animation: "fadeInUp 0.8s ease-out" }}
+    >
+      {/* Logo icon */}
+      <div className="relative mb-5">
+        <div
+          className="w-20 h-20 rounded-full flex items-center justify-center"
+          style={{
+            background:
+              "linear-gradient(135deg, #e50914 0%, #b20710 50%, #831010 100%)",
+            boxShadow:
+              "0 0 40px rgba(229, 9, 20, 0.4), 0 0 80px rgba(229, 9, 20, 0.15)",
+          }}
+        >
+          <svg
+            width="40"
+            height="40"
+            viewBox="0 0 40 40"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle cx="20" cy="20" r="15" stroke="white" strokeWidth="2" fill="none" opacity="0.9" />
+            <circle cx="20" cy="20" r="10" stroke="white" strokeWidth="1.5" fill="none" opacity="0.5" />
+            <polygon points="17,13 17,27 29,20" fill="white" opacity="0.95" />
+          </svg>
+        </div>
+        <div
+          className="absolute -inset-2 rounded-full opacity-50"
+          style={{
+            background: "radial-gradient(circle, rgba(229,9,20,0.3) 0%, transparent 70%)",
+            filter: "blur(10px)",
+          }}
         />
       </div>
 
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
+      {/* Brand name */}
+      <h1
+        className="text-5xl sm:text-6xl font-bold tracking-tight"
+        style={{
+          background: "linear-gradient(to right, #ffffff 0%, #e0e0e0 50%, #ffffff 100%)",
+          backgroundSize: "200% auto",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          animation: "shimmer 3s linear infinite",
+        }}
+      >
+        CineCircle
+      </h1>
+    </div>
+  );
+}
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
+function FacebookButton() {
+  const router = useRouter();
+  return (
+    <button
+      onClick={() => {
+        router.push("/home");
+      }}
+      className="group relative w-full max-w-[340px] mx-auto flex items-center justify-center gap-3 py-4 px-8 rounded-full font-semibold text-[15px] text-white transition-all duration-300 ease-out cursor-pointer"
+      style={{
+        background: "linear-gradient(180deg, #4a9af5 0%, #1877F2 40%, #0d65d9 100%)",
+        boxShadow:
+          "0 4px 24px rgba(24, 119, 242, 0.4), 0 1px 3px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
+        animation: "pulseGlow 3s ease-in-out infinite",
+      }}
+      onMouseEnter={(e) => {
+        const btn = e.currentTarget;
+        btn.style.transform = "translateY(-2px) scale(1.02)";
+        btn.style.boxShadow =
+          "0 8px 32px rgba(24, 119, 242, 0.5), 0 2px 8px rgba(0,0,0,0.3)";
+      }}
+      onMouseLeave={(e) => {
+        const btn = e.currentTarget;
+        btn.style.transform = "translateY(0) scale(1)";
+        btn.style.boxShadow =
+          "0 4px 24px rgba(24, 119, 242, 0.4), 0 1px 3px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)";
+      }}
+      onMouseDown={(e) => {
+        e.currentTarget.style.transform = "translateY(0) scale(0.98)";
+      }}
+      onMouseUp={(e) => {
+        e.currentTarget.style.transform = "translateY(-2px) scale(1.02)";
+      }}
+    >
+      {/* Facebook icon */}
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+      </svg>
+      Continue with Facebook
+      {/* Glass shine */}
+      <div
+        className="absolute inset-0 rounded-full overflow-hidden pointer-events-none"
+        style={{
+          background:
+            "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 40%, transparent 50%)",
+        }}
+      />
+    </button>
+  );
+}
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore the Next.js 13 playground.
-          </p>
-        </a>
+export default function LoginPage() {
+  return (
+    <main className="relative h-screen h-[100dvh] flex flex-col items-center justify-center px-6 overflow-hidden">
+      <Background />
 
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
+      {/* Content */}
+      <div className="relative z-10 flex flex-col items-center w-full max-w-md">
+        <CineCircleLogo />
+
+        {/* Tagline */}
+        <p
+          className="mt-6 text-2xl sm:text-3xl text-white font-light text-center leading-snug"
+          style={{
+            animation: "fadeInUp 0.8s ease-out 0.2s both",
+            textShadow: "0 2px 15px rgba(0,0,0,0.5)",
+          }}
         >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
+          Discover what to
+          <br />
+          watch next.
+        </p>
+
+        {/* Spacer */}
+        <div className="my-10" />
+
+        {/* Facebook CTA */}
+        <div
+          className="w-full"
+          style={{ animation: "fadeInUp 0.8s ease-out 0.4s both" }}
+        >
+          <FacebookButton />
+        </div>
+
+        {/* AI subtitle */}
+        <p
+          className="mt-10 text-sm sm:text-base text-white/50 font-light tracking-wide text-center italic"
+          style={{
+            animation: "fadeInUp 0.8s ease-out 0.6s both",
+            textShadow: "0 1px 8px rgba(0,0,0,0.4)",
+          }}
+        >
+          Personalized recommendations
+          <br />
+          powered by AI
+        </p>
+
+        {/* TMDB attribution */}
+        <p
+          className="mt-12 text-[10px] text-white/20 text-center leading-relaxed max-w-xs"
+          style={{ animation: "fadeInUp 0.8s ease-out 0.8s both" }}
+        >
+          This product uses the TMDB API but is not endorsed or certified by
+          TMDB.
+        </p>
       </div>
     </main>
-  )
+  );
 }
