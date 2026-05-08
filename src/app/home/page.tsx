@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 interface UserProfile {
@@ -474,6 +475,7 @@ function FromYourCircleCarousel() {
 }
 
 interface TrendingMovie {
+  tmdb_id?: number;
   title: string;
   year: number;
   rating: number;
@@ -482,8 +484,16 @@ interface TrendingMovie {
 }
 
 function TrendingMovieCard({ movie }: { movie: TrendingMovie }) {
+  const Wrapper = movie.tmdb_id
+    ? ({ children, className }: { children: React.ReactNode; className: string }) => (
+        <Link href={`/movie/${movie.tmdb_id}`} className={className}>{children}</Link>
+      )
+    : ({ children, className }: { children: React.ReactNode; className: string }) => (
+        <div className={className}>{children}</div>
+      );
+
   return (
-    <div className="shrink-0 w-[160px] sm:w-[180px] group cursor-pointer">
+    <Wrapper className="shrink-0 w-[160px] sm:w-[180px] group cursor-pointer">
       <div className="relative aspect-[2/3] rounded-xl overflow-hidden mb-2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -542,7 +552,7 @@ function TrendingMovieCard({ movie }: { movie: TrendingMovie }) {
         <p className="text-white text-sm font-medium truncate">{movie.title}</p>
         <p className="text-white/40 text-xs">{movie.year}</p>
       </div>
-    </div>
+    </Wrapper>
   );
 }
 
@@ -561,12 +571,14 @@ function TrendingCarousel() {
         if (data.movies) {
           const mapped: TrendingMovie[] = data.movies.map(
             (m: {
+              tmdb_id: number;
               title: string;
               release_date: string;
               vote_average: number;
               poster_path: string | null;
               rank: number;
             }) => ({
+              tmdb_id: m.tmdb_id,
               title: m.title,
               year: m.release_date
                 ? parseInt(m.release_date.split("-")[0], 10)
