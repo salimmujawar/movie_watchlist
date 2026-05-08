@@ -315,65 +315,134 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [completed, setCompleted] = useState(false);
-  const likedRef = useRef<string[]>([]);
-  const dislikedRef = useRef<string[]>([]);
+  const [ready, setReady] = useState(false);
 
-  // Save onboarding results to Supabase using the authenticated user
-  const saveOnboardingResults = useCallback(async () => {
-    const userId = localStorage.getItem("cinecircle_user_id");
+  // Guard: skip onboarding if the user has already completed it
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      const userId = localStorage.getItem("cinecircle_user_id");
 
-    if (userId) {
-      // Update user with onboarding preferences
-      await supabase
-        .from("users")
-        .update({
-          liked_movies: likedRef.current,
-          disliked_movies: dislikedRef.current,
-          onboarding_completed: true,
-        })
-        .eq("id", userId);
-    } else {
-      // Fallback: find user via auth session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        await supabase
+      if (userId) {
+        const { data } = await supabase
           .from("users")
-          .update({
-            liked_movies: likedRef.current,
-            disliked_movies: dislikedRef.current,
-            onboarding_completed: true,
-          })
-          .eq("google_id", session.user.id);
+          .select("onboarding_completed")
+          .eq("id", userId)
+          .single();
+
+        if (data?.onboarding_completed) {
+          router.replace("/home");
+          return;
+        }
+      } else {
+        // No user at all — check auth session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          router.replace("/");
+          return;
+        }
+        const { data } = await supabase
+          .from("users")
+          .select("id, onboarding_completed")
+          .eq("google_id", session.user.id)
+          .single();
+
+        if (data?.onboarding_completed) {
+          router.replace("/home");
+          return;
+        }
+        if (data) {
+          localStorage.setItem("cinecircle_user_id", data.id);
+        }
+      }
+
+      setReady(true);
+    };
+
+    checkOnboarding();
+  }, [router]);
+
+  // Resolve the user ID (localStorage first, then auth session fallback)
+  const getUserId = useCallback(async (): Promise<string | null> => {
+    const localId = localStorage.getItem("cinecircle_user_id");
+    if (localId) return localId;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      const { data } = await supabase
+        .from("users")
+        .select("id")
+        .eq("google_id", session.user.id)
+        .single();
+      if (data) {
+        localStorage.setItem("cinecircle_user_id", data.id);
+        return data.id;
       }
     }
+    return null;
   }, []);
+
+  // Save a single movie preference to the movie_preferences table
+  const savePreference = useCallback(
+    async (movie: Movie, direction: "left" | "right") => {
+      const userId = await getUserId();
+      if (!userId) return;
+
+      await supabase.from("movie_preferences").upsert(
+        {
+          user_id: userId,
+          movie_title: movie.title,
+          movie_genre: movie.genres,
+          preference: direction === "right" ? "liked" : "disliked",
+        },
+        { onConflict: "user_id,movie_title" }
+      );
+    },
+    [getUserId]
+  );
+
+  // Mark onboarding as completed on the users table
+  const markOnboardingComplete = useCallback(async () => {
+    const userId = await getUserId();
+    if (userId) {
+      await supabase
+        .from("users")
+        .update({ onboarding_completed: true })
+        .eq("id", userId);
+    }
+  }, [getUserId]);
 
   const handleSwipe = useCallback(
     (direction: "left" | "right") => {
-      // Track liked/disliked movies
       const movie = MOVIES[currentIndex];
-      if (direction === "right") {
-        likedRef.current = [...likedRef.current, movie.title];
-      } else {
-        dislikedRef.current = [...dislikedRef.current, movie.title];
-      }
+
+      // Save this swipe to movie_preferences
+      savePreference(movie, direction);
 
       const nextIndex = currentIndex + 1;
       if (nextIndex >= MOVIES.length) {
         setCurrentIndex(nextIndex);
         setCompleted(true);
-        // Save results to DB then navigate to home
-        saveOnboardingResults().then(() => {
+        // Mark onboarding done then navigate to home
+        markOnboardingComplete().then(() => {
           setTimeout(() => router.push("/home"), 1500);
         });
       } else {
         setCurrentIndex(nextIndex);
       }
     },
-    [currentIndex, router, saveOnboardingResults]
+    [currentIndex, router, savePreference, markOnboardingComplete]
   );
 
   const remaining = MOVIES.slice(currentIndex);
+
+  // Show loading spinner while checking onboarding status
+  if (!ready) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="w-10 h-10 border-2 border-white/20 border-t-red-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen min-h-[100dvh] bg-[#0a0a0a] flex flex-col items-center justify-center px-6 py-10 overflow-hidden relative">
