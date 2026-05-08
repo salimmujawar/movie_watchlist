@@ -481,19 +481,6 @@ interface TrendingMovie {
   rank: number;
 }
 
-const TRENDING_MOVIES: TrendingMovie[] = [
-  { title: "Dune: Part Two", year: 2024, rating: 8.6, poster: "https://image.tmdb.org/t/p/w500/8b8R8l88Qje9dn9OE8PY05Nez7S.jpg", rank: 1 },
-  { title: "Oppenheimer", year: 2023, rating: 8.9, poster: "https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg", rank: 2 },
-  { title: "Deadpool & Wolverine", year: 2024, rating: 7.8, poster: "https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg", rank: 3 },
-  { title: "Inside Out 2", year: 2024, rating: 7.6, poster: "https://image.tmdb.org/t/p/w500/vpnVM9B6NMmQpWeZvzLvDESb2QY.jpg", rank: 4 },
-  { title: "The Batman", year: 2022, rating: 7.8, poster: "https://image.tmdb.org/t/p/w500/74xTEgt7R36Fpooo50r9T25onhq.jpg", rank: 5 },
-  { title: "Spider-Verse", year: 2023, rating: 8.7, poster: "https://image.tmdb.org/t/p/w500/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg", rank: 6 },
-  { title: "Interstellar", year: 2014, rating: 8.7, poster: "https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg", rank: 7 },
-  { title: "John Wick 4", year: 2023, rating: 7.7, poster: "https://image.tmdb.org/t/p/w500/vZloFAK7NmvMGKE7VkF5UHaz0I.jpg", rank: 8 },
-  { title: "Barbie", year: 2023, rating: 6.8, poster: "https://image.tmdb.org/t/p/w500/iuFNMS8U5cb6xfzi51Dbkovj7vM.jpg", rank: 9 },
-  { title: "Killers of the Flower Moon", year: 2023, rating: 7.6, poster: "https://image.tmdb.org/t/p/w500/dB6Krk806zeqd0YNp2ngQ9zXteH.jpg", rank: 10 },
-];
-
 function TrendingMovieCard({ movie }: { movie: TrendingMovie }) {
   return (
     <div className="shrink-0 w-[160px] sm:w-[180px] group cursor-pointer">
@@ -563,6 +550,40 @@ function TrendingCarousel() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [movies, setMovies] = useState<TrendingMovie[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch trending movies from our cached API
+  useEffect(() => {
+    fetch("/api/trending")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.movies) {
+          const mapped: TrendingMovie[] = data.movies.map(
+            (m: {
+              title: string;
+              release_date: string;
+              vote_average: number;
+              poster_path: string | null;
+              rank: number;
+            }) => ({
+              title: m.title,
+              year: m.release_date
+                ? parseInt(m.release_date.split("-")[0], 10)
+                : 0,
+              rating: m.vote_average,
+              poster: m.poster_path
+                ? `https://image.tmdb.org/t/p/w500${m.poster_path}`
+                : "",
+              rank: m.rank,
+            })
+          );
+          setMovies(mapped);
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
   const checkScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -577,7 +598,7 @@ function TrendingCarousel() {
     checkScroll();
     el.addEventListener("scroll", checkScroll, { passive: true });
     return () => el.removeEventListener("scroll", checkScroll);
-  }, [checkScroll]);
+  }, [checkScroll, movies]);
 
   const scroll = (dir: "left" | "right") => {
     const el = scrollRef.current;
@@ -616,17 +637,29 @@ function TrendingCarousel() {
         </div>
       </div>
 
-      <div
-        ref={scrollRef}
-        className="flex gap-4 overflow-x-auto overflow-y-visible pb-2 scrollbar-hide"
-        style={{ scrollSnapType: "x mandatory", scrollbarWidth: "none" }}
-      >
-        {TRENDING_MOVIES.map((movie) => (
-          <div key={movie.title} style={{ scrollSnapAlign: "start" }}>
-            <TrendingMovieCard movie={movie} />
-          </div>
-        ))}
-      </div>
+      {loading ? (
+        <div className="flex gap-4">
+          {[...Array(5)].map((_, i) => (
+            <div
+              key={i}
+              className="shrink-0 w-[160px] sm:w-[180px] aspect-[2/3] rounded-xl animate-pulse"
+              style={{ background: "rgba(255,255,255,0.06)" }}
+            />
+          ))}
+        </div>
+      ) : (
+        <div
+          ref={scrollRef}
+          className="flex gap-4 overflow-x-auto overflow-y-visible pb-2 scrollbar-hide"
+          style={{ scrollSnapType: "x mandatory", scrollbarWidth: "none" }}
+        >
+          {movies.map((movie) => (
+            <div key={movie.title} style={{ scrollSnapAlign: "start" }}>
+              <TrendingMovieCard movie={movie} />
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
