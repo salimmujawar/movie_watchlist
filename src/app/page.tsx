@@ -78,7 +78,7 @@ function FacebookButton() {
   return (
     <button
       onClick={() => {
-        router.push("/home");
+        router.push("/onboarding");
       }}
       className="group relative w-full max-w-[340px] mx-auto flex items-center justify-center gap-3 py-4 px-8 rounded-full font-semibold text-[15px] text-white transition-all duration-300 ease-out cursor-pointer"
       style={{
