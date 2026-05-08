@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -19,7 +20,7 @@ export interface UserProfile {
 
 function Logo() {
   return (
-    <div className="flex items-center gap-2 shrink-0">
+    <Link href="/home" className="flex items-center gap-2 shrink-0">
       <div
         className="w-9 h-9 rounded-full flex items-center justify-center"
         style={{
@@ -41,7 +42,7 @@ function Logo() {
       <span className="text-white font-bold text-lg tracking-tight hidden sm:block">
         CineCircle
       </span>
-    </div>
+    </Link>
   );
 }
 
