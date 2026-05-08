@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 function Background() {
@@ -74,11 +76,10 @@ function CineCircleLogo() {
 }
 
 function FacebookButton() {
-  const router = useRouter();
   return (
     <button
       onClick={() => {
-        router.push("/onboarding");
+        signIn("facebook", { callbackUrl: "/onboarding" });
       }}
       className="group relative w-full max-w-[340px] mx-auto flex items-center justify-center gap-3 py-4 px-8 rounded-full font-semibold text-[15px] text-white transition-all duration-300 ease-out cursor-pointer"
       style={{
@@ -124,6 +125,25 @@ function FacebookButton() {
 }
 
 export default function LoginPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  // If already authenticated, redirect to home
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace("/home");
+    }
+  }, [status, router]);
+
+  // Show loading while checking session
+  if (status === "loading") {
+    return (
+      <main className="relative h-screen h-[100dvh] flex items-center justify-center bg-[#0a0a0a]">
+        <div className="w-10 h-10 border-2 border-white/20 border-t-red-500 rounded-full animate-spin" />
+      </main>
+    );
+  }
+
   return (
     <main className="relative h-screen h-[100dvh] flex flex-col items-center justify-center px-6 overflow-hidden">
       <Background />
