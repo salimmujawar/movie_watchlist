@@ -87,7 +87,10 @@ function ProfileMenu({ user }: { user: UserProfile | null }) {
   const userImage = user?.profile_image;
   const userInitial = userName.charAt(0).toUpperCase();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Sign out of Supabase Auth (clears session cookies/tokens)
+    await supabase.auth.signOut();
+    // Clear local user ID
     localStorage.removeItem("cinecircle_user_id");
     router.push("/");
   };
@@ -686,36 +689,55 @@ export default function HomePage() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load user from Supabase on mount
+  // Load user from Supabase Auth session on mount
   useEffect(() => {
-    const userId = localStorage.getItem("cinecircle_user_id");
+    const loadUser = async () => {
+      // First check Supabase Auth session
+      const { data: { session } } = await supabase.auth.getSession();
 
-    if (!userId) {
-      // No user session — redirect to login
-      router.replace("/");
-      return;
-    }
+      if (session) {
+        // User is authenticated — look up their profile by google_id
+        const { data, error } = await supabase
+          .from("users")
+          .select("id, name, first_name, email, profile_image, onboarding_completed")
+          .eq("google_id", session.user.id)
+          .single();
 
-    supabase
-      .from("users")
-      .select("id, name, first_name, email, profile_image, onboarding_completed")
-      .eq("id", userId)
-      .single()
-      .then(({ data, error }) => {
-        if (error || !data) {
-          // Invalid user — clear and redirect
-          localStorage.removeItem("cinecircle_user_id");
-          router.replace("/");
-        } else {
+        if (!error && data) {
           setUser(data as UserProfile);
+          localStorage.setItem("cinecircle_user_id", data.id);
           // Update last login timestamp
           supabase
             .from("users")
             .update({ last_login_at: new Date().toISOString() })
-            .eq("id", userId);
+            .eq("id", data.id);
+          setLoading(false);
+          return;
         }
-        setLoading(false);
-      });
+      }
+
+      // Fallback: check localStorage (for legacy sessions)
+      const userId = localStorage.getItem("cinecircle_user_id");
+      if (userId) {
+        const { data, error } = await supabase
+          .from("users")
+          .select("id, name, first_name, email, profile_image, onboarding_completed")
+          .eq("id", userId)
+          .single();
+
+        if (!error && data) {
+          setUser(data as UserProfile);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // No valid session — redirect to login
+      localStorage.removeItem("cinecircle_user_id");
+      router.replace("/");
+    };
+
+    loadUser();
   }, [router]);
 
   if (loading) {

@@ -1,12 +1,12 @@
 -- ============================================
 -- CineCircle: Users Table
 -- ============================================
--- Stores user profile data from Facebook OAuth
+-- Stores user profile data from Google OAuth
 -- and onboarding preferences for AI recommendations
 
 CREATE TABLE IF NOT EXISTS users (
     id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    facebook_id           VARCHAR(50) UNIQUE NOT NULL,
+    google_id           VARCHAR(50) UNIQUE NOT NULL,
     name                  VARCHAR(100) NOT NULL,
     first_name            VARCHAR(50),
     last_name             VARCHAR(50),
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- Indexes for fast lookups
-CREATE INDEX IF NOT EXISTS idx_users_facebook_id ON users(facebook_id);
+CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
 -- Auto-update the updated_at timestamp on row changes

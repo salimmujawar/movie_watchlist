@@ -318,13 +318,12 @@ export default function OnboardingPage() {
   const likedRef = useRef<string[]>([]);
   const dislikedRef = useRef<string[]>([]);
 
-  // Save onboarding results to Supabase
+  // Save onboarding results to Supabase using the authenticated user
   const saveOnboardingResults = useCallback(async () => {
-    // Get or create a temporary user for demo (will be replaced with real auth later)
     const userId = localStorage.getItem("cinecircle_user_id");
 
     if (userId) {
-      // Update existing user with onboarding results
+      // Update user with onboarding preferences
       await supabase
         .from("users")
         .update({
@@ -334,23 +333,17 @@ export default function OnboardingPage() {
         })
         .eq("id", userId);
     } else {
-      // Create a new demo user with onboarding results
-      const { data } = await supabase
-        .from("users")
-        .insert({
-          facebook_id: `demo_${Date.now()}`,
-          name: "Alex",
-          first_name: "Alex",
-          email: `demo_${Date.now()}@cinecircle.app`,
-          liked_movies: likedRef.current,
-          disliked_movies: dislikedRef.current,
-          onboarding_completed: true,
-        })
-        .select("id")
-        .single();
-
-      if (data) {
-        localStorage.setItem("cinecircle_user_id", data.id);
+      // Fallback: find user via auth session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await supabase
+          .from("users")
+          .update({
+            liked_movies: likedRef.current,
+            disliked_movies: dislikedRef.current,
+            onboarding_completed: true,
+          })
+          .eq("google_id", session.user.id);
       }
     }
   }, []);
