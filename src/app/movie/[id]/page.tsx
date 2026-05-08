@@ -292,24 +292,47 @@ export default function MovieDetailPage() {
     }
   }, [movieId]);
 
-  // Load existing user rating from movie_preferences
+  // Load existing user state from all tables on mount
   useEffect(() => {
     const userId = localStorage.getItem("cinecircle_user_id");
     if (!userId || !movieId) return;
+    const tmdbId = Number(movieId);
 
+    // Load rating from movie_preferences
     supabase
       .from("movie_preferences")
-      .select("rating, preference")
+      .select("rating")
       .eq("user_id", userId)
-      .eq("tmdb_id", Number(movieId))
+      .eq("tmdb_id", tmdbId)
       .single()
       .then(({ data }) => {
         if (data?.rating) setUserRating(data.rating);
-        if (data?.preference === "liked") setWatched(true);
+      });
+
+    // Load watchlist status
+    supabase
+      .from("watchlist")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("tmdb_id", tmdbId)
+      .single()
+      .then(({ data }) => {
+        if (data) setInWatchlist(true);
+      });
+
+    // Load watched status
+    supabase
+      .from("watched_movies")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("tmdb_id", tmdbId)
+      .single()
+      .then(({ data }) => {
+        if (data) setWatched(true);
       });
   }, [movieId]);
 
-  // Save rating to movie_preferences
+  // ── Save rating to movie_preferences ─────────────────────────────────
   const handleRate = useCallback(
     async (star: number) => {
       const newRating = star === userRating ? 0 : star;
@@ -319,8 +342,6 @@ export default function MovieDetailPage() {
       if (!userId || !movie) return;
 
       if (newRating === 0) {
-        // User cleared their rating — remove the row if it was a 'rated' only entry
-        // but keep it if it was liked/disliked from onboarding
         await supabase
           .from("movie_preferences")
           .update({ rating: null })
@@ -329,8 +350,6 @@ export default function MovieDetailPage() {
         return;
       }
 
-      // Upsert: if a preference already exists for this movie, add/update rating
-      // If not, create a new 'rated' entry
       const { data: existing } = await supabase
         .from("movie_preferences")
         .select("id")
@@ -356,6 +375,64 @@ export default function MovieDetailPage() {
     },
     [userRating, movie]
   );
+
+  // ── Toggle watchlist ─────────────────────────────────────────────────
+  const handleToggleWatchlist = useCallback(async () => {
+    const userId = localStorage.getItem("cinecircle_user_id");
+    if (!userId || !movie) return;
+
+    if (inWatchlist) {
+      // Remove from watchlist
+      await supabase
+        .from("watchlist")
+        .delete()
+        .eq("user_id", userId)
+        .eq("tmdb_id", movie.id);
+      setInWatchlist(false);
+    } else {
+      // Add to watchlist
+      await supabase.from("watchlist").upsert(
+        {
+          user_id: userId,
+          tmdb_id: movie.id,
+          movie_title: movie.title,
+          movie_genre: movie.genres,
+          poster_path: movie.poster_path,
+        },
+        { onConflict: "user_id,tmdb_id" }
+      );
+      setInWatchlist(true);
+    }
+  }, [inWatchlist, movie]);
+
+  // ── Toggle watched ───────────────────────────────────────────────────
+  const handleToggleWatched = useCallback(async () => {
+    const userId = localStorage.getItem("cinecircle_user_id");
+    if (!userId || !movie) return;
+
+    if (watched) {
+      // Remove from watched
+      await supabase
+        .from("watched_movies")
+        .delete()
+        .eq("user_id", userId)
+        .eq("tmdb_id", movie.id);
+      setWatched(false);
+    } else {
+      // Mark as watched
+      await supabase.from("watched_movies").upsert(
+        {
+          user_id: userId,
+          tmdb_id: movie.id,
+          movie_title: movie.title,
+          movie_genre: movie.genres,
+          poster_path: movie.poster_path,
+        },
+        { onConflict: "user_id,tmdb_id" }
+      );
+      setWatched(true);
+    }
+  }, [watched, movie]);
 
   useEffect(() => {
     if (movieId) fetchMovie();
@@ -484,7 +561,7 @@ export default function MovieDetailPage() {
                     </span>
                   )}
                   <button
-                    onClick={() => setInWatchlist(!inWatchlist)}
+                    onClick={handleToggleWatchlist}
                     className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
                     style={{
                       background: inWatchlist
@@ -522,7 +599,7 @@ export default function MovieDetailPage() {
             {/* Action buttons */}
             <div className="flex flex-wrap gap-3 mb-10">
               <button
-                onClick={() => setWatched(!watched)}
+                onClick={handleToggleWatched}
                 className="px-6 py-2.5 rounded-full text-sm font-semibold flex items-center gap-2 transition-all"
                 style={{
                   background: watched
@@ -538,18 +615,29 @@ export default function MovieDetailPage() {
               </button>
 
               <button
-                onClick={() => setInWatchlist(!inWatchlist)}
+                onClick={handleToggleWatchlist}
                 className="px-6 py-2.5 rounded-full text-sm font-semibold flex items-center gap-2 transition-all hover:bg-white/15"
                 style={{
-                  background: "rgba(255,255,255,0.1)",
-                  border: "1px solid rgba(255,255,255,0.2)",
+                  background: inWatchlist
+                    ? "rgba(34, 197, 94, 0.15)"
+                    : "rgba(255,255,255,0.1)",
+                  border: inWatchlist
+                    ? "1px solid rgba(34, 197, 94, 0.4)"
+                    : "1px solid rgba(255,255,255,0.2)",
+                  color: inWatchlist ? "#4ade80" : "white",
                 }}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                Add to List
+                {inWatchlist ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                )}
+                {inWatchlist ? "In Watchlist" : "Add to List"}
               </button>
 
               <button
