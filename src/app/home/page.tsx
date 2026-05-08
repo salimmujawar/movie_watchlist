@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
+
 function Logo() {
   return (
     <div className="flex items-center gap-2 shrink-0">
@@ -30,7 +32,7 @@ function Logo() {
 
 function SearchBox() {
   return (
-    <div className="relative flex-1 max-w-md">
+    <div className="relative w-full max-w-sm">
       <svg
         className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40"
         width="16"
@@ -54,27 +56,26 @@ function SearchBox() {
   );
 }
 
-function ProfileSection() {
+function NotificationBell() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
-    <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-      <span className="text-white/70 text-sm hidden md:block">
-        Welcome, <span className="text-white font-medium">Alex</span>
-      </span>
-
-      {/* Profile pic */}
-      <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-white/20 cursor-pointer hover:ring-white/40 transition-all">
-        <div
-          className="w-full h-full flex items-center justify-center text-white font-semibold text-xs"
-          style={{
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-          }}
-        >
-          A
-        </div>
-      </div>
-
-      {/* Notification bell */}
-      <button className="relative p-2 rounded-full hover:bg-white/10 transition-colors">
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="relative p-2 rounded-full hover:bg-white/10 transition-colors"
+      >
         <svg
           width="20"
           height="20"
@@ -89,9 +90,86 @@ function ProfileSection() {
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
-        {/* Notification dot */}
         <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
       </button>
+
+      {/* Notification dropdown */}
+      {open && (
+        <div
+          className="absolute right-0 top-12 w-80 rounded-xl overflow-hidden shadow-2xl z-50"
+          style={{
+            background: "linear-gradient(180deg, #1a1a2e 0%, #16162a 100%)",
+            border: "1px solid rgba(255,255,255,0.1)",
+          }}
+        >
+          {/* Header */}
+          <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+            <h4 className="text-sm font-semibold text-white">Notifications</h4>
+            <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded-full font-medium">
+              2 new
+            </span>
+          </div>
+
+          {/* Welcome notification */}
+          <div className="px-4 py-3 hover:bg-white/5 transition-colors cursor-pointer border-b border-white/5">
+            <div className="flex gap-3">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                style={{
+                  background: "linear-gradient(135deg, #e50914 0%, #b20710 100%)",
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
+                    stroke="white"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                  <circle cx="12" cy="7" r="4" stroke="white" strokeWidth="2" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-white font-medium">Welcome to CineCircle!</p>
+                <p className="text-xs text-white/50 mt-0.5">
+                  Start discovering movies and shows recommended by your circle.
+                </p>
+                <span className="text-[10px] text-white/30 mt-1 block">Just now</span>
+              </div>
+              <span className="w-2 h-2 bg-blue-400 rounded-full shrink-0 mt-1.5" />
+            </div>
+          </div>
+
+          {/* Movie recommendation notification */}
+          <div className="px-4 py-3 hover:bg-white/5 transition-colors cursor-pointer">
+            <div className="flex gap-3">
+              <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="https://image.tmdb.org/t/p/w200/qJ2tW6WMUDux911BTUgMe1nFGDi.jpg"
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-white font-medium">Recommended for You</p>
+                <p className="text-xs text-white/50 mt-0.5">
+                  Based on your circle&apos;s taste, you might enjoy &quot;Inception&quot; — rated 4.8 by 3 friends.
+                </p>
+                <span className="text-[10px] text-white/30 mt-1 block">5 min ago</span>
+              </div>
+              <span className="w-2 h-2 bg-blue-400 rounded-full shrink-0 mt-1.5" />
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="px-4 py-2.5 border-t border-white/10 text-center">
+            <button className="text-xs text-red-400 hover:text-red-300 font-medium transition-colors">
+              View all notifications
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -107,23 +185,44 @@ function Navbar() {
         borderBottom: "1px solid rgba(255,255,255,0.06)",
       }}
     >
-      <div className="max-w-7xl mx-auto flex items-center gap-4 sm:gap-6">
+      <div className="max-w-7xl mx-auto flex items-center">
+        {/* Left: Logo */}
         <Logo />
 
-        {/* Discover tab */}
-        <button
-          className="px-4 py-1.5 rounded-full text-sm font-medium transition-all"
-          style={{
-            background: "rgba(229, 9, 20, 0.15)",
-            color: "#e50914",
-            border: "1px solid rgba(229, 9, 20, 0.3)",
-          }}
-        >
-          Discover
-        </button>
+        {/* Center: Discover + Search */}
+        <div className="flex-1 flex items-center justify-center gap-3 px-4">
+          <button
+            className="px-4 py-1.5 rounded-full text-sm font-medium transition-all shrink-0"
+            style={{
+              background: "rgba(229, 9, 20, 0.15)",
+              color: "#e50914",
+              border: "1px solid rgba(229, 9, 20, 0.3)",
+            }}
+          >
+            Discover
+          </button>
+          <SearchBox />
+        </div>
 
-        <SearchBox />
-        <ProfileSection />
+        {/* Right: Welcome + Profile + Bell */}
+        <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+          <span className="text-white/70 text-sm hidden md:block whitespace-nowrap">
+            Welcome, <span className="text-white font-medium">Alex</span>
+          </span>
+
+          <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-white/20 cursor-pointer hover:ring-white/40 transition-all">
+            <div
+              className="w-full h-full flex items-center justify-center text-white font-semibold text-xs"
+              style={{
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              }}
+            >
+              A
+            </div>
+          </div>
+
+          <NotificationBell />
+        </div>
       </div>
     </nav>
   );
@@ -134,10 +233,8 @@ export default function HomePage() {
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       <Navbar />
 
-      {/* Main content area */}
       <main className="pt-20 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
-          {/* Hero section */}
           <section className="py-8">
             <h2 className="text-2xl sm:text-3xl font-bold mb-2">
               Good evening, Alex
@@ -147,7 +244,6 @@ export default function HomePage() {
             </p>
           </section>
 
-          {/* Trending section placeholder */}
           <section className="py-6">
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <span className="text-red-500">&#9679;</span>
@@ -167,7 +263,6 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* From your circle placeholder */}
           <section className="py-6">
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <span className="text-blue-400">&#9679;</span>
