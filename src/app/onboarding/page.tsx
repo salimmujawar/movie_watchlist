@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 interface Movie {
   title: string;
@@ -314,19 +315,69 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [completed, setCompleted] = useState(false);
+  const likedRef = useRef<string[]>([]);
+  const dislikedRef = useRef<string[]>([]);
+
+  // Save onboarding results to Supabase
+  const saveOnboardingResults = useCallback(async () => {
+    // Get or create a temporary user for demo (will be replaced with real auth later)
+    const userId = localStorage.getItem("cinecircle_user_id");
+
+    if (userId) {
+      // Update existing user with onboarding results
+      await supabase
+        .from("users")
+        .update({
+          liked_movies: likedRef.current,
+          disliked_movies: dislikedRef.current,
+          onboarding_completed: true,
+        })
+        .eq("id", userId);
+    } else {
+      // Create a new demo user with onboarding results
+      const { data } = await supabase
+        .from("users")
+        .insert({
+          facebook_id: `demo_${Date.now()}`,
+          name: "Alex",
+          first_name: "Alex",
+          email: `demo_${Date.now()}@cinecircle.app`,
+          liked_movies: likedRef.current,
+          disliked_movies: dislikedRef.current,
+          onboarding_completed: true,
+        })
+        .select("id")
+        .single();
+
+      if (data) {
+        localStorage.setItem("cinecircle_user_id", data.id);
+      }
+    }
+  }, []);
 
   const handleSwipe = useCallback(
     (direction: "left" | "right") => {
+      // Track liked/disliked movies
+      const movie = MOVIES[currentIndex];
+      if (direction === "right") {
+        likedRef.current = [...likedRef.current, movie.title];
+      } else {
+        dislikedRef.current = [...dislikedRef.current, movie.title];
+      }
+
       const nextIndex = currentIndex + 1;
       if (nextIndex >= MOVIES.length) {
         setCurrentIndex(nextIndex);
         setCompleted(true);
-        setTimeout(() => router.push("/home"), 1500);
+        // Save results to DB then navigate to home
+        saveOnboardingResults().then(() => {
+          setTimeout(() => router.push("/home"), 1500);
+        });
       } else {
         setCurrentIndex(nextIndex);
       }
     },
-    [currentIndex, router]
+    [currentIndex, router, saveOnboardingResults]
   );
 
   const remaining = MOVIES.slice(currentIndex);
