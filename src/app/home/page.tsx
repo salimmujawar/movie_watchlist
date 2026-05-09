@@ -31,18 +31,24 @@ function CircleMovieCard({ movie }: { movie: CircleMovie }) {
   return (
     <div className="shrink-0 w-[160px] sm:w-[180px] group cursor-pointer">
       {/* Poster */}
-      <div className="relative aspect-[2/3] rounded-xl overflow-hidden mb-2">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={movie.poster}
-          alt={movie.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          loading="lazy"
-        />
+      <div className="relative rounded-xl overflow-hidden mb-2" style={{ aspectRatio: "2/3" }}>
+        {movie.poster ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={movie.poster}
+            alt={movie.title}
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            loading="lazy"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-white/10 flex items-center justify-center text-white/30 text-xs">
+            No Poster
+          </div>
+        )}
 
         {/* Rating badge */}
         <div
-          className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold"
+          className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold z-10"
           style={{
             background: "rgba(0,0,0,0.7)",
             backdropFilter: "blur(8px)",
@@ -55,7 +61,7 @@ function CircleMovieCard({ movie }: { movie: CircleMovie }) {
         </div>
 
         {/* Friends' Choice badge at bottom */}
-        <div className="absolute bottom-0 left-0 right-0 p-2">
+        <div className="absolute bottom-0 left-0 right-0 p-2 z-10">
           <div
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-white"
             style={{
@@ -63,7 +69,7 @@ function CircleMovieCard({ movie }: { movie: CircleMovie }) {
               backdropFilter: "blur(8px)",
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="shrink-0">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
               <circle cx="9" cy="7" r="4" />
               <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -77,8 +83,8 @@ function CircleMovieCard({ movie }: { movie: CircleMovie }) {
         <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
 
-      {/* Info below poster */}
-      <div className="px-1">
+      {/* Info below poster — fixed height */}
+      <div className="px-1 h-[54px]">
         <div className="flex items-center gap-1.5 mb-1">
           <div className="flex -space-x-1.5">
             {[0, 1, 2].map((j) => (
@@ -94,7 +100,7 @@ function CircleMovieCard({ movie }: { movie: CircleMovie }) {
           <span className="text-white/40 text-[11px]">+{movie.friendsCount - 3}</span>
         </div>
         <p className="text-white text-sm font-medium truncate">{movie.title}</p>
-        <p className="text-white/40 text-xs">{movie.friendsCount} friends liked this!</p>
+        <p className="text-white/40 text-xs truncate">{movie.friendsCount} friends liked this!</p>
       </div>
     </div>
   );
@@ -197,18 +203,24 @@ function TrendingMovieCard({ movie }: { movie: TrendingMovie }) {
 
   return (
     <Wrapper className="shrink-0 w-[160px] sm:w-[180px] group cursor-pointer">
-      <div className="relative aspect-[2/3] rounded-xl overflow-hidden mb-2">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={movie.poster}
-          alt={movie.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          loading="lazy"
-        />
+      <div className="relative rounded-xl overflow-hidden mb-2" style={{ aspectRatio: "2/3" }}>
+        {movie.poster ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={movie.poster}
+            alt={movie.title}
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            loading="lazy"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-white/10 flex items-center justify-center text-white/30 text-xs">
+            No Poster
+          </div>
+        )}
 
         {/* Rating badge */}
         <div
-          className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold"
+          className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold z-10"
           style={{
             background: "rgba(0,0,0,0.7)",
             backdropFilter: "blur(8px)",
@@ -221,7 +233,7 @@ function TrendingMovieCard({ movie }: { movie: TrendingMovie }) {
         </div>
 
         {/* Trending badge at bottom */}
-        <div className="absolute bottom-0 left-0 right-0 p-2">
+        <div className="absolute bottom-0 left-0 right-0 p-2 z-10">
           <div
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-white"
             style={{
@@ -229,7 +241,7 @@ function TrendingMovieCard({ movie }: { movie: TrendingMovie }) {
               backdropFilter: "blur(8px)",
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
               <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
               <polyline points="17 6 23 6 23 12" />
             </svg>
@@ -239,7 +251,7 @@ function TrendingMovieCard({ movie }: { movie: TrendingMovie }) {
 
         {/* Rank number */}
         <div
-          className="absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white"
+          className="absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white z-10"
           style={{
             background: "rgba(0,0,0,0.7)",
             backdropFilter: "blur(8px)",
@@ -251,7 +263,7 @@ function TrendingMovieCard({ movie }: { movie: TrendingMovie }) {
         <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
 
-      <div className="px-1">
+      <div className="px-1 h-[38px]">
         <p className="text-white text-sm font-medium truncate">{movie.title}</p>
         <p className="text-white/40 text-xs">{movie.year}</p>
       </div>
