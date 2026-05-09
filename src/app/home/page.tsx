@@ -755,53 +755,72 @@ function CineMatesCarousel({ currentUserId, onFollowChange }: { currentUserId: s
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
-  const [followState, setFollowState] = useState<Record<string, boolean>>({});
   const [followLoading, setFollowLoading] = useState<Record<string, boolean>>({});
-  const [mates, setMates] = useState<CineMate[]>(CINEMATES_SEED);
+  const [mates, setMates] = useState<CineMate[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
-  // Load real user IDs from Supabase + existing follow state
+  // Load real user IDs from Supabase + filter out already-followed users
   useEffect(() => {
+    let cancelled = false;
+
     async function loadCineMates() {
       const myId = currentUserId || localStorage.getItem("cinecircle_user_id");
-      const googleIds = CINEMATES_SEED.map((m) => m.googleId);
-      const { data: users } = await supabase
-        .from("users")
-        .select("id, google_id")
-        .in("google_id", googleIds);
+      if (!myId) {
+        // No user — show all mates without follow filtering
+        if (!cancelled) {
+          setMates(CINEMATES_SEED);
+          setLoaded(true);
+        }
+        return;
+      }
 
-      if (users) {
+      try {
+        // Step 1: Get real user IDs for the seeded CineMates
+        const googleIds = CINEMATES_SEED.map((m) => m.googleId);
+        const { data: users } = await supabase
+          .from("users")
+          .select("id, google_id")
+          .in("google_id", googleIds);
+
+        if (cancelled) return;
+
         const idMap: Record<string, string> = {};
-        users.forEach((u: { id: string; google_id: string }) => {
-          idMap[u.google_id] = u.id;
-        });
+        if (users) {
+          users.forEach((u: { id: string; google_id: string }) => {
+            idMap[u.google_id] = u.id;
+          });
+        }
 
         const enriched = CINEMATES_SEED.map((m) => ({
           ...m,
           userId: idMap[m.googleId] || null,
         }));
 
-        // Load which ones the current user already follows — exclude them from the list
-        if (myId) {
-          const followingIds = Object.values(idMap);
-          const { data: follows } = await supabase
-            .from("follows")
-            .select("following_id")
-            .eq("follower_id", myId)
-            .in("following_id", followingIds);
+        // Step 2: Get ALL users the current user follows (not just cinemates)
+        const { data: allFollows } = await supabase
+          .from("follows")
+          .select("following_id")
+          .eq("follower_id", myId);
 
-          if (follows && follows.length > 0) {
-            const followedSet = new Set(follows.map((f: { following_id: string }) => f.following_id));
-            // Remove already-followed users from CineMates
-            setMates(enriched.filter((m) => !m.userId || !followedSet.has(m.userId)));
-          } else {
-            setMates(enriched);
-          }
+        if (cancelled) return;
+
+        if (allFollows && allFollows.length > 0) {
+          const followedSet = new Set(allFollows.map((f: { following_id: string }) => f.following_id));
+          // Remove any mate whose userId is in the followed set
+          setMates(enriched.filter((m) => !m.userId || !followedSet.has(m.userId)));
         } else {
           setMates(enriched);
         }
+      } catch (err) {
+        console.error("[CineMates] loadCineMates error:", err);
+        if (!cancelled) setMates(CINEMATES_SEED);
       }
+
+      if (!cancelled) setLoaded(true);
     }
+
     loadCineMates();
+    return () => { cancelled = true; };
   }, [currentUserId]);
 
   const checkScroll = useCallback(() => {
@@ -833,32 +852,18 @@ function CineMatesCarousel({ currentUserId, onFollowChange }: { currentUserId: s
     setFollowLoading((prev) => ({ ...prev, [mateId]: true }));
 
     try {
-      const alreadyFollowing = !!followState[mateId];
-
-      if (alreadyFollowing) {
-        const res = await fetch("/api/follow", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ follower_id: userId, following_id: mateId }),
-        });
-        const json = await res.json();
-        if (json.success) {
-          setFollowState((prev) => ({ ...prev, [mateId]: false }));
-          onFollowChange();
-        }
+      const res = await fetch("/api/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ follower_id: userId, following_id: mateId }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        // Remove from CineMates list immediately
+        setMates((prev) => prev.filter((m) => m.userId !== mateId));
+        onFollowChange();
       } else {
-        const res = await fetch("/api/follow", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ follower_id: userId, following_id: mateId }),
-        });
-        const json = await res.json();
-        if (json.success) {
-          setFollowState((prev) => ({ ...prev, [mateId]: true }));
-          // Remove from CineMates list after following
-          setMates((prev) => prev.filter((m) => m.userId !== mateId));
-          onFollowChange();
-        }
+        console.error("[CineMates] follow API error:", json.error);
       }
     } catch (err) {
       console.error("[CineMates] follow toggle error:", err);
@@ -866,6 +871,29 @@ function CineMatesCarousel({ currentUserId, onFollowChange }: { currentUserId: s
 
     setFollowLoading((prev) => ({ ...prev, [mateId]: false }));
   };
+
+  // Don't render until data has loaded — avoids flashing the full unfiltered list
+  if (!loaded) {
+    return (
+      <section className="py-6">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <span className="text-purple-400">&#9679;</span>
+            CineMates
+          </h3>
+        </div>
+        <p className="text-white/30 text-sm mb-4">People whose movie taste matches your vibe.</p>
+        <div className="flex gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="shrink-0 rounded-xl animate-pulse" style={{ width: 240, height: 280, background: "rgba(255,255,255,0.03)" }} />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  // If all mates have been followed, hide the section
+  if (mates.length === 0) return null;
 
   return (
     <section className="py-6">
@@ -908,7 +936,7 @@ function CineMatesCarousel({ currentUserId, onFollowChange }: { currentUserId: s
           <CineMateCard
             key={mate.handle}
             mate={mate}
-            isFollowing={!!(mate.userId && followState[mate.userId])}
+            isFollowing={false}
             followLoading={!!(mate.userId && followLoading[mate.userId])}
             onToggleFollow={() => toggleFollow(mate)}
           />
