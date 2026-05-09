@@ -630,7 +630,19 @@ interface CineMate {
   initials: string;
 }
 
-// CineMates seed data is now in /api/cinemates — client only needs the type
+// Fallback seed data — used if the /api/cinemates call fails
+const CINEMATES_FALLBACK: CineMate[] = [
+  { userId: null, googleId: "cinemate_aarav",  name: "Aarav Kapoor",   handle: "@framesbyaarav",       bio: "Lives for Nolan, neon noir & existential sci-fi.",        watched: 428, followers: "1.2K", tags: ["Sci-Fi", "Slow Burn", "Thriller"],              aiSignal: "Top Sci-Fi Curator",         avatarBg: "linear-gradient(135deg, #e50914, #b20710)", initials: "AK" },
+  { userId: null, googleId: "cinemate_zoya",   name: "Zoya Mirza",     handle: "@zoyawatches",         bio: "Rom-coms, rainy films & emotionally damaging endings.",   watched: 312, followers: "842",  tags: ["Romance", "Indie", "Drama"],                    aiSignal: "Trusted by 96 cinephiles",   avatarBg: "linear-gradient(135deg, #ec4899, #be185d)", initials: "ZM" },
+  { userId: null, googleId: "cinemate_ethan",  name: "Ethan Blake",    handle: "@cinemaholic_ethan",   bio: "Marvel by day, A24 by night.",                            watched: 590, followers: "2.8K", tags: ["Superhero", "Dark Comedy", "Psychological"],    aiSignal: "Most Watched This Month",    avatarBg: "linear-gradient(135deg, #3b82f6, #1d4ed8)", initials: "EB" },
+  { userId: null, googleId: "cinemate_sana",   name: "Sana Sheikh",    handle: "@reelwithsana",        bio: "Plot twists > happy endings.",                            watched: 267, followers: "1.1K", tags: ["Mystery", "Thriller", "Crime"],                 aiSignal: "92% Taste Match",            avatarBg: "linear-gradient(135deg, #f59e0b, #d97706)", initials: "SS" },
+  { userId: null, googleId: "cinemate_liam",   name: "Liam Carter",    handle: "@pixelreels",          bio: "Give me time travel and heartbreak.",                     watched: 481, followers: "970",  tags: ["Sci-Fi", "Emotional Drama", "Mind-Bending"],   aiSignal: "Your Friends Follow Them",   avatarBg: "linear-gradient(135deg, #06b6d4, #0284c7)", initials: "LC" },
+  { userId: null, googleId: "cinemate_maya",   name: "Maya Fernandes", handle: "@mayaatthemovies",     bio: "Bollywood classics & comfort movies forever.",            watched: 355, followers: "1.6K", tags: ["Bollywood", "Musical", "Feel-Good"],            aiSignal: "Top Comfort Movie Curator",  avatarBg: "linear-gradient(135deg, #8b5cf6, #6d28d9)", initials: "MF" },
+  { userId: null, googleId: "cinemate_rohan",  name: "Rohan D'Souza", handle: "@rohanrewinds",        bio: "Horror movies are my therapy.",                           watched: 623, followers: "3.1K", tags: ["Horror", "Slasher", "Dark"],                   aiSignal: "Horror Expert Badge",        avatarBg: "linear-gradient(135deg, #ef4444, #b91c1c)", initials: "RD" },
+  { userId: null, googleId: "cinemate_chloe",  name: "Chloe Bennett",  handle: "@scenequeenchloe",     bio: "Obsessed with visually beautiful cinema.",                watched: 294, followers: "780",  tags: ["Aesthetic", "Indie", "Slow Cinema"],            aiSignal: "Critics Choice Creator",     avatarBg: "linear-gradient(135deg, #14b8a6, #0d9488)", initials: "CB" },
+  { userId: null, googleId: "cinemate_yusuf",  name: "Yusuf Khan",     handle: "@midnightframes",      bio: "Neo-noir, gangster films & chaotic antiheroes.",          watched: 510, followers: "2.2K", tags: ["Crime", "Noir", "Action"],                      aiSignal: "88% Taste Compatibility",    avatarBg: "linear-gradient(135deg, #f97316, #c2410c)", initials: "YK" },
+  { userId: null, googleId: "cinemate_elena",  name: "Elena Rossi",    handle: "@elenagoestocinema",   bio: "French films, heartbreak & long monologues.",             watched: 376, followers: "1.4K", tags: ["Foreign Cinema", "Drama", "Art House"],         aiSignal: "Trending Taste Profile",     avatarBg: "linear-gradient(135deg, #6366f1, #4f46e5)", initials: "ER" },
+];
 
 function CineMateCard({
   mate,
@@ -759,14 +771,24 @@ function CineMatesCarousel({ currentUserId, onFollowChange }: { currentUserId: s
       .then((res) => res.json())
       .then((data) => {
         if (cancelled) return;
-        if (data.mates) {
+        if (data.mates && data.mates.length > 0) {
           setMates(data.mates);
+        } else if (!data.error) {
+          // API returned empty mates (all followed) — keep mates empty
+          setMates([]);
+        } else {
+          // API error — show fallback seed data so section doesn't vanish
+          setMates(CINEMATES_FALLBACK);
         }
         setLoaded(true);
       })
       .catch((err) => {
         console.error("[CineMates] load error:", err);
-        if (!cancelled) setLoaded(true);
+        if (!cancelled) {
+          // Network/fetch error — show fallback so section still renders
+          setMates(CINEMATES_FALLBACK);
+          setLoaded(true);
+        }
       });
 
     return () => { cancelled = true; };
