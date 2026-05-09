@@ -27,6 +27,39 @@ const GENRES: Genre[] = [
   { id: 99,    name: "Documentary",     icon: "📽️", gradient: "linear-gradient(135deg, #78716c 0%, #44403c 100%)" },
 ];
 
+// ─── Age Ratings ─────────────────────────────────────────────────────────────
+
+interface AgeRating {
+  value: string;
+  label: string;
+  description: string;
+  color: string;
+}
+
+const AGE_RATINGS: AgeRating[] = [
+  { value: "G",     label: "G",     description: "All ages",       color: "#22c55e" },
+  { value: "PG",    label: "PG",    description: "Parental guide", color: "#84cc16" },
+  { value: "PG-13", label: "PG-13", description: "Ages 13+",       color: "#f59e0b" },
+  { value: "R",     label: "R",     description: "Ages 17+",       color: "#ef4444" },
+];
+
+// ─── Avoid Themes ────────────────────────────────────────────────────────────
+
+interface AvoidTheme {
+  key: string;       // API param value
+  label: string;
+  icon: string;
+}
+
+const AVOID_THEMES: AvoidTheme[] = [
+  { key: "gore",       label: "Gore",             icon: "🩸" },
+  { key: "violence",   label: "Violence",         icon: "⚔️"  },
+  { key: "language",   label: "Strong Language",   icon: "🤬" },
+  { key: "adult",      label: "Adult Content",     icon: "🔞" },
+  { key: "drugs",      label: "Drug Use",          icon: "💊" },
+  { key: "disturbing", label: "Disturbing",        icon: "😰" },
+];
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface SearchResult {
@@ -46,20 +79,24 @@ function GenreChip({
   genre,
   selected,
   onClick,
+  disabled,
   index,
 }: {
   genre: Genre;
   selected: boolean;
   onClick: () => void;
+  disabled: boolean;
   index: number;
 }) {
   return (
     <button
       onClick={onClick}
-      className="group relative shrink-0 transition-all duration-300 ease-out"
+      disabled={disabled}
+      className="group relative shrink-0 transition-all duration-300 ease-out disabled:pointer-events-none"
       style={{
         animationDelay: `${index * 50}ms`,
         animation: "fadeSlideUp 0.4s ease-out backwards",
+        opacity: disabled ? 0.35 : 1,
       }}
     >
       <div
@@ -193,22 +230,27 @@ export default function SearchModal({
 }) {
   const [query, setQuery] = useState("");
   const [selectedGenres, setSelectedGenres] = useState<number[]>([]);
+  const [maxRating, setMaxRating] = useState<string | null>(null);
+  const [avoidThemes, setAvoidThemes] = useState<string[]>([]);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Is the user typing a direct movie name search?
+  const isDirectSearch = query.length > 0;
+
   // Focus input when modal opens
   useEffect(() => {
     if (isOpen) {
-      // Small delay for the animation
       const t = setTimeout(() => inputRef.current?.focus(), 150);
       return () => clearTimeout(t);
     } else {
-      // Reset state when modal closes
       setQuery("");
       setSelectedGenres([]);
+      setMaxRating(null);
+      setAvoidThemes([]);
       setResults([]);
       setSearched(false);
     }
@@ -237,10 +279,18 @@ export default function SearchModal({
 
   // Debounced search
   const performSearch = useCallback(
-    (searchQuery: string, genres: number[]) => {
+    (
+      searchQuery: string,
+      genres: number[],
+      rating: string | null,
+      themes: string[]
+    ) => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
 
-      if (!searchQuery && genres.length === 0) {
+      // If text query → only that matters (direct search)
+      // If no text → need at least one filter
+      const hasFilters = genres.length > 0 || rating || themes.length > 0;
+      if (!searchQuery && !hasFilters) {
         setResults([]);
         setSearched(false);
         setLoading(false);
@@ -252,8 +302,16 @@ export default function SearchModal({
       debounceRef.current = setTimeout(async () => {
         try {
           const params = new URLSearchParams();
-          if (searchQuery) params.set("q", searchQuery);
-          if (genres.length > 0) params.set("genres", genres.join(","));
+
+          if (searchQuery) {
+            // Direct movie name → bypass all filters
+            params.set("q", searchQuery);
+          } else {
+            // Discovery mode → send all filters
+            if (genres.length > 0) params.set("genres", genres.join(","));
+            if (rating) params.set("max_rating", rating);
+            if (themes.length > 0) params.set("avoid", themes.join(","));
+          }
 
           const res = await fetch(`/api/search?${params.toString()}`);
           const data = await res.json();
@@ -269,10 +327,10 @@ export default function SearchModal({
     []
   );
 
-  // Trigger search on query or genre change
+  // Trigger search on any filter change
   useEffect(() => {
-    performSearch(query, selectedGenres);
-  }, [query, selectedGenres, performSearch]);
+    performSearch(query, selectedGenres, maxRating, avoidThemes);
+  }, [query, selectedGenres, maxRating, avoidThemes, performSearch]);
 
   const toggleGenre = (genreId: number) => {
     setSelectedGenres((prev) =>
@@ -282,44 +340,47 @@ export default function SearchModal({
     );
   };
 
+  const toggleAvoidTheme = (key: string) => {
+    setAvoidThemes((prev) =>
+      prev.includes(key)
+        ? prev.filter((k) => k !== key)
+        : [...prev, key]
+    );
+  };
+
+  const clearAllFilters = () => {
+    setSelectedGenres([]);
+    setMaxRating(null);
+    setAvoidThemes([]);
+  };
+
   if (!isOpen) return null;
 
-  const hasInput = query.length > 0 || selectedGenres.length > 0;
+  const hasFilters = selectedGenres.length > 0 || maxRating || avoidThemes.length > 0;
+  const hasInput = query.length > 0 || hasFilters;
 
   return (
     <>
       {/* Global keyframe styles */}
       <style jsx global>{`
         @keyframes fadeSlideUp {
-          from {
-            opacity: 0;
-            transform: translateY(12px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes modalSlideIn {
-          from {
-            opacity: 0;
-            transform: translateY(-20px) scale(0.98);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
+          from { opacity: 0; transform: translateY(-20px) scale(0.98); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
         }
         @keyframes backdropFadeIn {
           from { opacity: 0; }
-          to { opacity: 1; }
+          to   { opacity: 1; }
         }
         @keyframes pulseGlow {
           0%, 100% { opacity: 0.4; }
-          50% { opacity: 0.8; }
+          50%      { opacity: 0.8; }
         }
         @keyframes shimmer {
-          0% { background-position: -200% center; }
+          0%   { background-position: -200% center; }
           100% { background-position: 200% center; }
         }
       `}</style>
@@ -338,11 +399,11 @@ export default function SearchModal({
 
       {/* Modal */}
       <div
-        className="fixed inset-x-0 top-0 z-[101] flex justify-center px-4 pt-[10vh] sm:pt-[12vh]"
+        className="fixed inset-x-0 top-0 bottom-0 z-[101] flex justify-center px-4 pt-[6vh] sm:pt-[8vh] pb-4 overflow-y-auto"
         onClick={onClose}
       >
         <div
-          className="w-full max-w-2xl"
+          className="w-full max-w-2xl h-fit"
           onClick={(e) => e.stopPropagation()}
           style={{ animation: "modalSlideIn 0.35s ease-out" }}
         >
@@ -397,15 +458,16 @@ export default function SearchModal({
             </div>
 
             {/* ── Search Input ───────────────────────────────────────── */}
-            <div className="px-5 pb-4">
+            <div className="px-5 pb-3">
               <div
                 className="relative flex items-center rounded-xl transition-all duration-300"
                 style={{
                   background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.1)",
+                  border: isDirectSearch
+                    ? "1px solid rgba(229,9,20,0.3)"
+                    : "1px solid rgba(255,255,255,0.1)",
                 }}
               >
-                {/* Search icon / loading spinner */}
                 <div className="pl-4 pr-2 shrink-0">
                   {loading ? (
                     <div className="w-5 h-5 border-2 border-white/20 border-t-red-500 rounded-full animate-spin" />
@@ -440,23 +502,42 @@ export default function SearchModal({
                 )}
               </div>
 
-              {/* Keyboard shortcut hint */}
-              <div className="flex items-center justify-end mt-2 gap-1.5">
-                <kbd className="text-[10px] text-white/20 px-1.5 py-0.5 rounded border border-white/10 bg-white/5 font-mono">ESC</kbd>
-                <span className="text-[10px] text-white/20">to close</span>
+              {/* Hints row */}
+              <div className="flex items-center justify-between mt-2">
+                {isDirectSearch && hasFilters ? (
+                  <div className="flex items-center gap-1.5">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" className="shrink-0">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span className="text-[10px] text-amber-400/70">
+                      Filters bypassed — searching by movie name
+                    </span>
+                  </div>
+                ) : (
+                  <div />
+                )}
+                <div className="flex items-center gap-1.5">
+                  <kbd className="text-[10px] text-white/20 px-1.5 py-0.5 rounded border border-white/10 bg-white/5 font-mono">ESC</kbd>
+                  <span className="text-[10px] text-white/20">to close</span>
+                </div>
               </div>
             </div>
 
             {/* ── Genre Chips ────────────────────────────────────────── */}
-            <div className="px-5 pb-4">
+            <div
+              className="px-5 pb-4 transition-opacity duration-300"
+              style={{ opacity: isDirectSearch ? 0.35 : 1 }}
+            >
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-xs text-white/30 font-medium uppercase tracking-wider">Genres</span>
-                {selectedGenres.length > 0 && (
+                {selectedGenres.length > 0 && !isDirectSearch && (
                   <button
                     onClick={() => setSelectedGenres([])}
                     className="text-[10px] text-red-400/70 hover:text-red-400 transition-colors ml-1"
                   >
-                    Clear all
+                    Clear
                   </button>
                 )}
               </div>
@@ -467,9 +548,116 @@ export default function SearchModal({
                     genre={genre}
                     selected={selectedGenres.includes(genre.id)}
                     onClick={() => toggleGenre(genre.id)}
+                    disabled={isDirectSearch}
                     index={i}
                   />
                 ))}
+              </div>
+            </div>
+
+            {/* ── Content Preferences ────────────────────────────────── */}
+            <div
+              className="px-5 pb-4 transition-opacity duration-300"
+              style={{ opacity: isDirectSearch ? 0.35 : 1 }}
+            >
+              {/* Section header */}
+              <div className="flex items-center gap-2 mb-3">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" className="shrink-0">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+                <span className="text-xs text-white/30 font-medium uppercase tracking-wider">Content Preferences</span>
+                {hasFilters && !isDirectSearch && (
+                  <button
+                    onClick={clearAllFilters}
+                    className="text-[10px] text-red-400/70 hover:text-red-400 transition-colors ml-1"
+                  >
+                    Reset all
+                  </button>
+                )}
+              </div>
+
+              {/* Max Age Rating */}
+              <div className="mb-4">
+                <p className="text-[11px] text-white/25 mb-2 ml-0.5">Max Age Rating</p>
+                <div className="flex gap-2">
+                  {AGE_RATINGS.map((r) => {
+                    const isSelected = maxRating === r.value;
+                    return (
+                      <button
+                        key={r.value}
+                        onClick={() => setMaxRating(isSelected ? null : r.value)}
+                        disabled={isDirectSearch}
+                        className="relative group transition-all duration-200 disabled:pointer-events-none"
+                      >
+                        <div
+                          className="flex flex-col items-center gap-1 px-4 py-2.5 rounded-xl transition-all duration-200"
+                          style={{
+                            background: isSelected
+                              ? `rgba(${r.color === "#22c55e" ? "34,197,94" : r.color === "#84cc16" ? "132,204,22" : r.color === "#f59e0b" ? "245,158,11" : "239,68,68"},0.15)`
+                              : "rgba(255,255,255,0.04)",
+                            border: isSelected
+                              ? `1px solid ${r.color}40`
+                              : "1px solid rgba(255,255,255,0.06)",
+                            transform: isSelected ? "scale(1.05)" : "scale(1)",
+                          }}
+                        >
+                          <span
+                            className="text-sm font-bold transition-colors"
+                            style={{ color: isSelected ? r.color : "rgba(255,255,255,0.5)" }}
+                          >
+                            {r.label}
+                          </span>
+                          <span className="text-[9px] text-white/25 whitespace-nowrap">
+                            {r.description}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Avoid Themes */}
+              <div>
+                <p className="text-[11px] text-white/25 mb-2 ml-0.5">Avoid Themes</p>
+                <div className="flex flex-wrap gap-2">
+                  {AVOID_THEMES.map((theme) => {
+                    const isSelected = avoidThemes.includes(theme.key);
+                    return (
+                      <button
+                        key={theme.key}
+                        onClick={() => toggleAvoidTheme(theme.key)}
+                        disabled={isDirectSearch}
+                        className="transition-all duration-200 disabled:pointer-events-none"
+                      >
+                        <div
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium transition-all duration-200"
+                          style={{
+                            background: isSelected
+                              ? "rgba(239,68,68,0.15)"
+                              : "rgba(255,255,255,0.04)",
+                            border: isSelected
+                              ? "1px solid rgba(239,68,68,0.35)"
+                              : "1px solid rgba(255,255,255,0.06)",
+                            color: isSelected
+                              ? "#fca5a5"
+                              : "rgba(255,255,255,0.45)",
+                            transform: isSelected ? "scale(1.03)" : "scale(1)",
+                          }}
+                        >
+                          <span className="text-sm">{theme.icon}</span>
+                          <span className="whitespace-nowrap">{theme.label}</span>
+                          {isSelected && (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="ml-0.5 opacity-60">
+                              <line x1="18" y1="6" x2="6" y2="18" />
+                              <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -489,10 +677,9 @@ export default function SearchModal({
             {hasInput && (
               <div
                 className="px-3 py-3 overflow-y-auto"
-                style={{ maxHeight: "40vh", scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.1) transparent" }}
+                style={{ maxHeight: "35vh", scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.1) transparent" }}
               >
                 {loading && results.length === 0 ? (
-                  /* Loading skeleton */
                   <div className="space-y-3 px-2">
                     {[...Array(3)].map((_, i) => (
                       <div key={i} className="flex gap-4 p-3 animate-pulse">
@@ -506,14 +693,12 @@ export default function SearchModal({
                     ))}
                   </div>
                 ) : searched && results.length === 0 ? (
-                  /* No results */
                   <div className="text-center py-10">
                     <div className="text-3xl mb-3">🎬</div>
                     <p className="text-white/40 text-sm">No movies found</p>
                     <p className="text-white/20 text-xs mt-1">Try a different vibe or genre</p>
                   </div>
                 ) : (
-                  /* Result cards */
                   <div className="space-y-1">
                     {results.slice(0, 8).map((movie, i) => (
                       <ResultCard
@@ -547,7 +732,7 @@ export default function SearchModal({
                     />
                   </div>
                   <p className="text-white/20 text-xs">
-                    Type a mood, pick genres, or describe what you feel like watching
+                    Type a movie name for direct search, or use genres &amp; preferences to discover
                   </p>
                 </div>
               </div>
