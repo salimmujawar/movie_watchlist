@@ -414,6 +414,8 @@ function TrendingCarousel() {
 // ─── CineMates Data & Components ──────────────────────────────────────────────
 
 interface CineMate {
+  userId: string | null;       // real Supabase user id (null until loaded)
+  googleId: string;            // used to match seeded users
   name: string;
   handle: string;
   bio: string;
@@ -423,35 +425,41 @@ interface CineMate {
   aiSignal: string;
   avatarBg: string;
   initials: string;
-  following: boolean;
 }
 
-const CINEMATES: CineMate[] = [
-  { name: "Aarav Kapoor", handle: "@framesbyaarav", bio: "Lives for Nolan, neon noir & existential sci-fi.", watched: 428, followers: "1.2K", tags: ["Sci-Fi", "Slow Burn", "Thriller"], aiSignal: "Top Sci-Fi Curator", avatarBg: "linear-gradient(135deg, #e50914, #b20710)", initials: "AK", following: false },
-  { name: "Zoya Mirza", handle: "@zoyawatches", bio: "Rom-coms, rainy films & emotionally damaging endings.", watched: 312, followers: "842", tags: ["Romance", "Indie", "Drama"], aiSignal: "Trusted by 96 cinephiles", avatarBg: "linear-gradient(135deg, #ec4899, #be185d)", initials: "ZM", following: false },
-  { name: "Ethan Blake", handle: "@cinemaholic_ethan", bio: "Marvel by day, A24 by night.", watched: 590, followers: "2.8K", tags: ["Superhero", "Dark Comedy", "Psychological"], aiSignal: "Most Watched This Month", avatarBg: "linear-gradient(135deg, #3b82f6, #1d4ed8)", initials: "EB", following: false },
-  { name: "Sana Sheikh", handle: "@reelwithsana", bio: "Plot twists > happy endings.", watched: 267, followers: "1.1K", tags: ["Mystery", "Thriller", "Crime"], aiSignal: "92% Taste Match", avatarBg: "linear-gradient(135deg, #f59e0b, #d97706)", initials: "SS", following: false },
-  { name: "Liam Carter", handle: "@pixelreels", bio: "Give me time travel and heartbreak.", watched: 481, followers: "970", tags: ["Sci-Fi", "Emotional Drama", "Mind-Bending"], aiSignal: "Your Friends Follow Them", avatarBg: "linear-gradient(135deg, #06b6d4, #0284c7)", initials: "LC", following: false },
-  { name: "Maya Fernandes", handle: "@mayaatthemovies", bio: "Bollywood classics & comfort movies forever.", watched: 355, followers: "1.6K", tags: ["Bollywood", "Musical", "Feel-Good"], aiSignal: "Top Comfort Movie Curator", avatarBg: "linear-gradient(135deg, #8b5cf6, #6d28d9)", initials: "MF", following: false },
-  { name: "Rohan D’Souza", handle: "@rohanrewinds", bio: "Horror movies are my therapy.", watched: 623, followers: "3.1K", tags: ["Horror", "Slasher", "Dark"], aiSignal: "Horror Expert Badge", avatarBg: "linear-gradient(135deg, #ef4444, #b91c1c)", initials: "RD", following: false },
-  { name: "Chloe Bennett", handle: "@scenequeenchloe", bio: "Obsessed with visually beautiful cinema.", watched: 294, followers: "780", tags: ["Aesthetic", "Indie", "Slow Cinema"], aiSignal: "Critics Choice Creator", avatarBg: "linear-gradient(135deg, #14b8a6, #0d9488)", initials: "CB", following: false },
-  { name: "Yusuf Khan", handle: "@midnightframes", bio: "Neo-noir, gangster films & chaotic antiheroes.", watched: 510, followers: "2.2K", tags: ["Crime", "Noir", "Action"], aiSignal: "88% Taste Compatibility", avatarBg: "linear-gradient(135deg, #f97316, #c2410c)", initials: "YK", following: false },
-  { name: "Elena Rossi", handle: "@elenagoestocinema", bio: "French films, heartbreak & long monologues.", watched: 376, followers: "1.4K", tags: ["Foreign Cinema", "Drama", "Art House"], aiSignal: "Trending Taste Profile", avatarBg: "linear-gradient(135deg, #6366f1, #4f46e5)", initials: "ER", following: false },
+const CINEMATES_SEED: CineMate[] = [
+  { userId: null, googleId: "cinemate_aarav",  name: "Aarav Kapoor",   handle: "@framesbyaarav",       bio: "Lives for Nolan, neon noir & existential sci-fi.",        watched: 428, followers: "1.2K", tags: ["Sci-Fi", "Slow Burn", "Thriller"],              aiSignal: "Top Sci-Fi Curator",         avatarBg: "linear-gradient(135deg, #e50914, #b20710)", initials: "AK" },
+  { userId: null, googleId: "cinemate_zoya",   name: "Zoya Mirza",     handle: "@zoyawatches",         bio: "Rom-coms, rainy films & emotionally damaging endings.",   watched: 312, followers: "842",  tags: ["Romance", "Indie", "Drama"],                    aiSignal: "Trusted by 96 cinephiles",   avatarBg: "linear-gradient(135deg, #ec4899, #be185d)", initials: "ZM" },
+  { userId: null, googleId: "cinemate_ethan",  name: "Ethan Blake",    handle: "@cinemaholic_ethan",   bio: "Marvel by day, A24 by night.",                            watched: 590, followers: "2.8K", tags: ["Superhero", "Dark Comedy", "Psychological"],    aiSignal: "Most Watched This Month",    avatarBg: "linear-gradient(135deg, #3b82f6, #1d4ed8)", initials: "EB" },
+  { userId: null, googleId: "cinemate_sana",   name: "Sana Sheikh",    handle: "@reelwithsana",        bio: "Plot twists > happy endings.",                            watched: 267, followers: "1.1K", tags: ["Mystery", "Thriller", "Crime"],                 aiSignal: "92% Taste Match",            avatarBg: "linear-gradient(135deg, #f59e0b, #d97706)", initials: "SS" },
+  { userId: null, googleId: "cinemate_liam",   name: "Liam Carter",    handle: "@pixelreels",          bio: "Give me time travel and heartbreak.",                     watched: 481, followers: "970",  tags: ["Sci-Fi", "Emotional Drama", "Mind-Bending"],   aiSignal: "Your Friends Follow Them",   avatarBg: "linear-gradient(135deg, #06b6d4, #0284c7)", initials: "LC" },
+  { userId: null, googleId: "cinemate_maya",   name: "Maya Fernandes", handle: "@mayaatthemovies",     bio: "Bollywood classics & comfort movies forever.",            watched: 355, followers: "1.6K", tags: ["Bollywood", "Musical", "Feel-Good"],            aiSignal: "Top Comfort Movie Curator",  avatarBg: "linear-gradient(135deg, #8b5cf6, #6d28d9)", initials: "MF" },
+  { userId: null, googleId: "cinemate_rohan",  name: "Rohan D’Souza", handle: "@rohanrewinds",        bio: "Horror movies are my therapy.",                           watched: 623, followers: "3.1K", tags: ["Horror", "Slasher", "Dark"],                   aiSignal: "Horror Expert Badge",        avatarBg: "linear-gradient(135deg, #ef4444, #b91c1c)", initials: "RD" },
+  { userId: null, googleId: "cinemate_chloe",  name: "Chloe Bennett",  handle: "@scenequeenchloe",     bio: "Obsessed with visually beautiful cinema.",                watched: 294, followers: "780",  tags: ["Aesthetic", "Indie", "Slow Cinema"],            aiSignal: "Critics Choice Creator",     avatarBg: "linear-gradient(135deg, #14b8a6, #0d9488)", initials: "CB" },
+  { userId: null, googleId: "cinemate_yusuf",  name: "Yusuf Khan",     handle: "@midnightframes",      bio: "Neo-noir, gangster films & chaotic antiheroes.",          watched: 510, followers: "2.2K", tags: ["Crime", "Noir", "Action"],                      aiSignal: "88% Taste Compatibility",    avatarBg: "linear-gradient(135deg, #f97316, #c2410c)", initials: "YK" },
+  { userId: null, googleId: "cinemate_elena",  name: "Elena Rossi",    handle: "@elenagoestocinema",   bio: "French films, heartbreak & long monologues.",             watched: 376, followers: "1.4K", tags: ["Foreign Cinema", "Drama", "Art House"],         aiSignal: "Trending Taste Profile",     avatarBg: "linear-gradient(135deg, #6366f1, #4f46e5)", initials: "ER" },
 ];
 
 function CineMateCard({
   mate,
   isFollowing,
   onToggleFollow,
+  followLoading,
 }: {
   mate: CineMate;
   isFollowing: boolean;
   onToggleFollow: () => void;
+  followLoading: boolean;
 }) {
   return (
     <div
-      className="shrink-0 w-[220px] sm:w-[240px] h-[280px] rounded-xl p-4 flex flex-col group transition-all hover:bg-white/[0.06]"
+      className="rounded-xl p-4 flex flex-col transition-all hover:bg-white/[0.06]"
       style={{
+        width: 240,
+        minWidth: 240,
+        maxWidth: 240,
+        height: 280,
+        flexShrink: 0,
         background: "rgba(255,255,255,0.03)",
         border: "1px solid rgba(255,255,255,0.06)",
       }}
@@ -465,7 +473,13 @@ function CineMateCard({
           {mate.initials}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-white text-sm font-semibold truncate">{mate.name}</p>
+          {mate.userId ? (
+            <Link href={`/cinemate/${mate.userId}`} className="text-white text-sm font-semibold truncate block hover:text-red-400 transition-colors">
+              {mate.name}
+            </Link>
+          ) : (
+            <p className="text-white text-sm font-semibold truncate">{mate.name}</p>
+          )}
           <p className="text-white/30 text-xs truncate">{mate.handle}</p>
         </div>
       </div>
@@ -518,7 +532,8 @@ function CineMateCard({
       {/* Follow button — pinned to bottom */}
       <button
         onClick={onToggleFollow}
-        className="w-full py-2 rounded-full text-xs font-semibold transition-all shrink-0 mt-3"
+        disabled={followLoading}
+        className="w-full py-2 rounded-full text-xs font-semibold transition-all shrink-0 mt-3 disabled:opacity-50"
         style={{
           background: isFollowing
             ? "rgba(255,255,255,0.06)"
@@ -527,17 +542,63 @@ function CineMateCard({
           border: isFollowing ? "1px solid rgba(255,255,255,0.15)" : "none",
         }}
       >
-        {isFollowing ? "Following" : "Follow"}
+        {followLoading ? "..." : isFollowing ? "Following" : "Follow"}
       </button>
     </div>
   );
 }
 
-function CineMatesCarousel() {
+function CineMatesCarousel({ currentUserId }: { currentUserId: string | null }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [followState, setFollowState] = useState<Record<string, boolean>>({});
+  const [followLoading, setFollowLoading] = useState<Record<string, boolean>>({});
+  const [mates, setMates] = useState<CineMate[]>(CINEMATES_SEED);
+
+  // Load real user IDs from Supabase + existing follow state
+  useEffect(() => {
+    async function loadCineMates() {
+      const googleIds = CINEMATES_SEED.map((m) => m.googleId);
+      const { data: users } = await supabase
+        .from("users")
+        .select("id, google_id")
+        .in("google_id", googleIds);
+
+      if (users) {
+        const idMap: Record<string, string> = {};
+        users.forEach((u: { id: string; google_id: string }) => {
+          idMap[u.google_id] = u.id;
+        });
+
+        setMates(
+          CINEMATES_SEED.map((m) => ({
+            ...m,
+            userId: idMap[m.googleId] || null,
+          }))
+        );
+
+        // Load which ones the current user already follows
+        if (currentUserId) {
+          const followingIds = Object.values(idMap);
+          const { data: follows } = await supabase
+            .from("follows")
+            .select("following_id")
+            .eq("follower_id", currentUserId)
+            .in("following_id", followingIds);
+
+          if (follows) {
+            const fState: Record<string, boolean> = {};
+            follows.forEach((f: { following_id: string }) => {
+              fState[f.following_id] = true;
+            });
+            setFollowState(fState);
+          }
+        }
+      }
+    }
+    loadCineMates();
+  }, [currentUserId]);
 
   const checkScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -552,14 +613,36 @@ function CineMatesCarousel() {
     checkScroll();
     el.addEventListener("scroll", checkScroll, { passive: true });
     return () => el.removeEventListener("scroll", checkScroll);
-  }, [checkScroll]);
+  }, [checkScroll, mates]);
 
   const scroll = (dir: "left" | "right") => {
     scrollRef.current?.scrollBy({ left: dir === "left" ? -380 : 380, behavior: "smooth" });
   };
 
-  const toggleFollow = (handle: string) => {
-    setFollowState((prev) => ({ ...prev, [handle]: !prev[handle] }));
+  const toggleFollow = async (mate: CineMate) => {
+    if (!currentUserId || !mate.userId) return;
+    const mateId = mate.userId;
+    setFollowLoading((prev) => ({ ...prev, [mateId]: true }));
+
+    const alreadyFollowing = !!followState[mateId];
+
+    if (alreadyFollowing) {
+      await fetch("/api/follow", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ follower_id: currentUserId, following_id: mateId }),
+      });
+      setFollowState((prev) => ({ ...prev, [mateId]: false }));
+    } else {
+      await fetch("/api/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ follower_id: currentUserId, following_id: mateId }),
+      });
+      setFollowState((prev) => ({ ...prev, [mateId]: true }));
+    }
+
+    setFollowLoading((prev) => ({ ...prev, [mateId]: false }));
   };
 
   return (
@@ -596,17 +679,17 @@ function CineMatesCarousel() {
 
       <div
         ref={scrollRef}
-        className="flex gap-4 overflow-x-auto overflow-y-visible pb-2 scrollbar-hide"
-        style={{ scrollSnapType: "x mandatory", msOverflowStyle: "none", scrollbarWidth: "none" }}
+        className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide"
+        style={{ scrollSnapType: "x mandatory", scrollbarWidth: "none" }}
       >
-        {CINEMATES.map((mate) => (
-          <div key={mate.handle} style={{ scrollSnapAlign: "start" }}>
-            <CineMateCard
-              mate={mate}
-              isFollowing={!!followState[mate.handle]}
-              onToggleFollow={() => toggleFollow(mate.handle)}
-            />
-          </div>
+        {mates.map((mate) => (
+          <CineMateCard
+            key={mate.handle}
+            mate={mate}
+            isFollowing={!!(mate.userId && followState[mate.userId])}
+            followLoading={!!(mate.userId && followLoading[mate.userId])}
+            onToggleFollow={() => toggleFollow(mate)}
+          />
         ))}
       </div>
     </section>
@@ -705,7 +788,7 @@ export default function HomePage() {
 
           <FromYourCircleCarousel />
 
-          <CineMatesCarousel />
+          <CineMatesCarousel currentUserId={user?.id || null} />
         </div>
       </main>
     </div>

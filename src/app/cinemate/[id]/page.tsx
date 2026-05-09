@@ -1,31 +1,28 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import Navbar, { UserProfile } from "@/components/Navbar";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface WatchlistMovie {
+interface CineMateProfile {
   id: string;
-  tmdb_id: number;
-  movie_title: string;
-  poster_path: string | null;
-  added_at: string;
-}
-
-interface WatchedMovie {
-  id: string;
-  tmdb_id: number;
-  movie_title: string;
-  poster_path: string | null;
-  watched_at: string;
-}
-
-interface ProfileData extends UserProfile {
+  name: string;
+  first_name: string | null;
+  email: string | null;
+  profile_image: string | null;
   bio: string | null;
+  created_at: string;
+}
+
+interface MovieItem {
+  id: string;
+  tmdb_id: number;
+  movie_title: string;
+  poster_path: string | null;
 }
 
 // ─── Watch Time Ring ──────────────────────────────────────────────────────────
@@ -53,35 +50,39 @@ function WatchTimeRing({ hours }: { hours: number }) {
   );
 }
 
-// ─── Movie Card (matches home page TrendingMovieCard style) ───────────────────
+// ─── Movie Card ───────────────────────────────────────────────────────────────
 
-function ProfileMovieCard({ movie }: { movie: { tmdb_id: number; movie_title: string; poster_path: string | null } }) {
+function ProfileMovieCard({ movie }: { movie: MovieItem }) {
   return (
-    <Link href={`/movie/${movie.tmdb_id}`} className="shrink-0 w-[160px] sm:w-[180px] group cursor-pointer">
-      <div className="relative aspect-[2/3] rounded-xl overflow-hidden mb-2">
+    <Link
+      href={`/movie/${movie.tmdb_id}`}
+      className="group cursor-pointer"
+      style={{ width: 180, minWidth: 180, maxWidth: 180, flexShrink: 0, overflow: "hidden", display: "block" }}
+    >
+      <div className="relative rounded-xl overflow-hidden" style={{ width: "100%", height: 260 }}>
         {movie.poster_path ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={`https://image.tmdb.org/t/p/w300${movie.poster_path}`}
             alt={movie.movie_title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full bg-white/10 flex items-center justify-center text-white/30 text-xs">
+          <div className="absolute inset-0 bg-white/10 flex items-center justify-center text-white/30 text-xs">
             No Poster
           </div>
         )}
         <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
-      <div className="px-1">
+      <div className="px-1 mt-2" style={{ height: 38 }}>
         <p className="text-white text-sm font-medium truncate">{movie.movie_title}</p>
       </div>
     </Link>
   );
 }
 
-// ─── Movie Carousel (matches home page carousel pattern) ──────────────────────
+// ─── Movie Carousel ───────────────────────────────────────────────────────────
 
 function ProfileCarousel({
   title,
@@ -91,7 +92,7 @@ function ProfileCarousel({
 }: {
   title: string;
   icon: React.ReactNode;
-  movies: { tmdb_id: number; movie_title: string; poster_path: string | null }[];
+  movies: MovieItem[];
   emptyText: string;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -114,10 +115,7 @@ function ProfileCarousel({
   }, [checkScroll, movies]);
 
   const scroll = (dir: "left" | "right") => {
-    scrollRef.current?.scrollBy({
-      left: dir === "left" ? -380 : 380,
-      behavior: "smooth",
-    });
+    scrollRef.current?.scrollBy({ left: dir === "left" ? -380 : 380, behavior: "smooth" });
   };
 
   return (
@@ -129,22 +127,16 @@ function ProfileCarousel({
         </h3>
         {movies.length > 0 && (
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => scroll("left")}
-              disabled={!canScrollLeft}
+            <button onClick={() => scroll("left")} disabled={!canScrollLeft}
               className="w-8 h-8 rounded-full flex items-center justify-center transition-all disabled:opacity-20 hover:bg-white/10"
-              style={{ border: "1px solid rgba(255,255,255,0.15)" }}
-            >
+              style={{ border: "1px solid rgba(255,255,255,0.15)" }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
                 <polyline points="15 18 9 12 15 6" />
               </svg>
             </button>
-            <button
-              onClick={() => scroll("right")}
-              disabled={!canScrollRight}
+            <button onClick={() => scroll("right")} disabled={!canScrollRight}
               className="w-8 h-8 rounded-full flex items-center justify-center transition-all disabled:opacity-20 hover:bg-white/10"
-              style={{ border: "1px solid rgba(255,255,255,0.15)" }}
-            >
+              style={{ border: "1px solid rgba(255,255,255,0.15)" }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
                 <polyline points="9 18 15 12 9 6" />
               </svg>
@@ -158,13 +150,11 @@ function ProfileCarousel({
       ) : (
         <div
           ref={scrollRef}
-          className="flex gap-4 overflow-x-auto overflow-y-visible pb-2 scrollbar-hide"
-          style={{ scrollSnapType: "x mandatory", msOverflowStyle: "none", scrollbarWidth: "none" }}
+          className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide"
+          style={{ scrollSnapType: "x mandatory", scrollbarWidth: "none" }}
         >
           {movies.map((m) => (
-            <div key={m.tmdb_id} style={{ scrollSnapAlign: "start" }}>
-              <ProfileMovieCard movie={m} />
-            </div>
+            <ProfileMovieCard key={m.tmdb_id} movie={m} />
           ))}
         </div>
       )}
@@ -172,81 +162,140 @@ function ProfileCarousel({
   );
 }
 
-// ─── Main Profile Page ────────────────────────────────────────────────────────
+// ─── Main CineMate Profile Page ───────────────────────────────────────────────
 
-export default function ProfilePage() {
-  const router = useRouter();
-  const [user, setUser] = useState<ProfileData | null>(null);
+export default function CineMateProfilePage() {
+  const { id } = useParams();
+  const [navUser, setNavUser] = useState<UserProfile | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [profile, setProfile] = useState<CineMateProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [watchedMovies, setWatchedMovies] = useState<WatchedMovie[]>([]);
-  const [watchlistMovies, setWatchlistMovies] = useState<WatchlistMovie[]>([]);
+  const [watchedMovies, setWatchedMovies] = useState<MovieItem[]>([]);
+  const [watchlistMovies, setWatchlistMovies] = useState<MovieItem[]>([]);
   const [watchedCount, setWatchedCount] = useState(0);
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
 
-  const loadProfile = useCallback(async () => {
+  const loadData = useCallback(async () => {
+    if (!id) return;
+    const cinemateId = id as string;
+
+    // ── Load current logged-in user for navbar ──
+    let myUserId: string | null = null;
     const { data: { session } } = await supabase.auth.getSession();
-    let userId: string | null = null;
-
     if (session) {
       const { data } = await supabase
         .from("users")
-        .select("id, name, first_name, email, profile_image, onboarding_completed, bio, created_at")
+        .select("id, name, first_name, email, profile_image, onboarding_completed")
         .eq("google_id", session.user.id)
         .single();
       if (data) {
-        setUser(data as ProfileData);
-        userId = data.id;
+        setNavUser(data as UserProfile);
+        myUserId = data.id;
         localStorage.setItem("cinecircle_user_id", data.id);
       }
     }
-
-    if (!userId) {
-      userId = localStorage.getItem("cinecircle_user_id");
-      if (userId) {
+    if (!myUserId) {
+      myUserId = localStorage.getItem("cinecircle_user_id");
+      if (myUserId) {
         const { data } = await supabase
           .from("users")
-          .select("id, name, first_name, email, profile_image, onboarding_completed, bio, created_at")
-          .eq("id", userId)
+          .select("id, name, first_name, email, profile_image, onboarding_completed")
+          .eq("id", myUserId)
           .single();
-        if (data) setUser(data as ProfileData);
-        else { localStorage.removeItem("cinecircle_user_id"); router.replace("/"); return; }
-      } else { router.replace("/"); return; }
+        if (data) setNavUser(data as UserProfile);
+      }
     }
+    setCurrentUserId(myUserId);
 
+    // ── Load CineMate profile ──
+    const { data: profileData } = await supabase
+      .from("users")
+      .select("id, name, first_name, email, profile_image, bio, created_at")
+      .eq("id", cinemateId)
+      .single();
+
+    if (!profileData) {
+      setLoading(false);
+      return;
+    }
+    setProfile(profileData as CineMateProfile);
+
+    // ── Load watched movies ──
     const { data: watched, count: wCount } = await supabase
       .from("watched_movies")
-      .select("id, tmdb_id, movie_title, poster_path, watched_at", { count: "exact" })
-      .eq("user_id", userId)
+      .select("id, tmdb_id, movie_title, poster_path", { count: "exact" })
+      .eq("user_id", cinemateId)
       .order("watched_at", { ascending: false });
     if (watched) setWatchedMovies(watched);
     if (wCount !== null) setWatchedCount(wCount);
 
+    // ── Load watchlist ──
     const { data: watchlist } = await supabase
       .from("watchlist")
-      .select("id, tmdb_id, movie_title, poster_path, added_at")
-      .eq("user_id", userId)
+      .select("id, tmdb_id, movie_title, poster_path")
+      .eq("user_id", cinemateId)
       .order("added_at", { ascending: false });
     if (watchlist) setWatchlistMovies(watchlist);
 
-    // Load follower/following counts
+    // ── Follower / following counts ──
     const { count: fwerCount } = await supabase
       .from("follows")
       .select("id", { count: "exact", head: true })
-      .eq("following_id", userId);
+      .eq("following_id", cinemateId);
     if (fwerCount !== null) setFollowerCount(fwerCount);
 
     const { count: fwingCount } = await supabase
       .from("follows")
       .select("id", { count: "exact", head: true })
-      .eq("follower_id", userId);
+      .eq("follower_id", cinemateId);
     if (fwingCount !== null) setFollowingCount(fwingCount);
 
+    // ── Am I following this person? ──
+    if (myUserId) {
+      const { data: followRow } = await supabase
+        .from("follows")
+        .select("id")
+        .eq("follower_id", myUserId)
+        .eq("following_id", cinemateId)
+        .maybeSingle();
+      setIsFollowing(!!followRow);
+    }
+
     setLoading(false);
-  }, [router]);
+  }, [id]);
 
-  useEffect(() => { loadProfile(); }, [loadProfile]);
+  useEffect(() => { loadData(); }, [loadData]);
 
+  // ── Follow / Unfollow handler ──
+  const handleFollowToggle = async () => {
+    if (!currentUserId || !profile) return;
+    setFollowLoading(true);
+
+    if (isFollowing) {
+      await fetch("/api/follow", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ follower_id: currentUserId, following_id: profile.id }),
+      });
+      setIsFollowing(false);
+      setFollowerCount((c) => Math.max(0, c - 1));
+    } else {
+      await fetch("/api/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ follower_id: currentUserId, following_id: profile.id }),
+      });
+      setIsFollowing(true);
+      setFollowerCount((c) => c + 1);
+    }
+
+    setFollowLoading(false);
+  };
+
+  // ── Loading state ──
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
@@ -255,25 +304,47 @@ export default function ProfilePage() {
     );
   }
 
-  if (!user) return null;
+  // ── Not found ──
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center gap-4">
+        <p className="text-white/50 text-lg">CineMate not found</p>
+        <Link href="/home" className="text-red-400 hover:text-red-300 text-sm">
+          Back to Home
+        </Link>
+      </div>
+    );
+  }
 
+  // ── Computed values ──
   const totalHours = watchedCount * 2;
   const months = Math.floor(totalHours / (24 * 30));
   const days = Math.floor((totalHours % (24 * 30)) / 24);
   const hours = totalHours % 24;
 
-  const userName = user.name || "User";
-  const userHandle = `@${(user.first_name || user.name || "user").replace(/\s+/g, "").toLowerCase()}`;
-  const userImage = user.profile_image;
+  const userName = profile.name || "User";
+  const userHandle = `@${(profile.first_name || profile.name || "user").replace(/\s+/g, "").toLowerCase()}`;
+  const userImage = profile.profile_image;
   const userInitial = userName.charAt(0).toUpperCase();
   const badgeTitle = watchedCount >= 100 ? "Gold Taste Critic" : watchedCount >= 20 ? "Silver Critic" : "Movie Explorer";
 
-  const followers = followerCount;
-  const following = followingCount;
+  // Pick an avatar gradient based on the first letter
+  const gradients: Record<string, string> = {
+    A: "linear-gradient(135deg, #e50914, #b20710)",
+    Z: "linear-gradient(135deg, #ec4899, #be185d)",
+    E: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
+    S: "linear-gradient(135deg, #f59e0b, #d97706)",
+    L: "linear-gradient(135deg, #06b6d4, #0284c7)",
+    M: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+    R: "linear-gradient(135deg, #ef4444, #b91c1c)",
+    C: "linear-gradient(135deg, #14b8a6, #0d9488)",
+    Y: "linear-gradient(135deg, #f97316, #c2410c)",
+  };
+  const avatarBg = gradients[userInitial] || "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
-      <Navbar user={user} />
+      <Navbar user={navUser} />
 
       {/* ── Profile Hero Banner ────────────────────────────────────────────── */}
       <div className="relative w-full h-[220px] sm:h-[260px] mt-[56px]">
@@ -304,21 +375,22 @@ export default function ProfilePage() {
               ) : (
                 <div
                   className="w-28 h-28 rounded-full flex items-center justify-center text-white font-bold text-3xl ring-4 ring-[#0a0a0a]"
-                  style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}
+                  style={{ background: avatarBg }}
                 >
                   {userInitial}
                 </div>
               )}
-              {/* Verified badge */}
+              {/* Badge */}
               <div
                 className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center"
                 style={{
-                  background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                  background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
                   border: "3px solid #0a0a0a",
                 }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
-                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
                 </svg>
               </div>
             </div>
@@ -329,27 +401,32 @@ export default function ProfilePage() {
                 <h1 className="text-2xl sm:text-3xl font-bold text-white">{userName}</h1>
                 <span
                   className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                  style={{ background: "rgba(245, 158, 11, 0.15)", color: "#f59e0b" }}
+                  style={{ background: "rgba(139, 92, 246, 0.15)", color: "#8b5cf6" }}
                 >
                   {badgeTitle}
                 </span>
               </div>
               <p className="text-white/40 text-sm mb-2">{userHandle}</p>
               <p className="text-white/50 text-sm max-w-md">
-                {user.bio || "Movie enthusiast on CineCircle."}
+                {profile.bio || "Movie enthusiast on CineCircle."}
               </p>
             </div>
 
-            {/* Action Buttons (desktop right side) */}
+            {/* Follow + Message Buttons */}
             <div className="flex gap-3 shrink-0">
               <button
-                className="px-6 py-2.5 rounded-full text-sm font-semibold text-white transition-all hover:bg-white/15"
+                onClick={handleFollowToggle}
+                disabled={followLoading}
+                className="px-6 py-2.5 rounded-full text-sm font-semibold transition-all disabled:opacity-50"
                 style={{
-                  background: "rgba(255,255,255,0.1)",
-                  border: "1px solid rgba(255,255,255,0.2)",
+                  background: isFollowing
+                    ? "rgba(255,255,255,0.1)"
+                    : "linear-gradient(135deg, #e50914 0%, #b20710 100%)",
+                  color: isFollowing ? "rgba(255,255,255,0.6)" : "white",
+                  border: isFollowing ? "1px solid rgba(255,255,255,0.2)" : "none",
                 }}
               >
-                Edit Profile
+                {followLoading ? "..." : isFollowing ? "Following" : "Follow"}
               </button>
               <button
                 className="px-6 py-2.5 rounded-full text-sm font-semibold text-white transition-all hover:bg-white/15"
@@ -366,12 +443,12 @@ export default function ProfilePage() {
           {/* ── Stats Row ──────────────────────────────────────────────────── */}
           <div className="flex items-center gap-6 sm:gap-8 mb-8 justify-center sm:justify-start">
             <div className="text-center sm:text-left">
-              <span className="text-xl font-bold text-white">{followers}</span>
+              <span className="text-xl font-bold text-white">{followerCount}</span>
               <span className="text-white/40 text-sm ml-1.5">Followers</span>
             </div>
             <div className="w-px h-5 bg-white/15" />
             <div className="text-center sm:text-left">
-              <span className="text-xl font-bold text-white">{following}</span>
+              <span className="text-xl font-bold text-white">{followingCount}</span>
               <span className="text-white/40 text-sm ml-1.5">Following</span>
             </div>
             <div className="w-px h-5 bg-white/15" />
@@ -387,7 +464,7 @@ export default function ProfilePage() {
               <span className="text-red-500">&#9679;</span>
               Movie Watch Time
             </h3>
-            <p className="text-white/30 text-sm mb-5">Your cinematic journey</p>
+            <p className="text-white/30 text-sm mb-5">Their cinematic journey</p>
 
             <div className="flex items-center gap-8">
               <div className="shrink-0">
@@ -432,7 +509,7 @@ export default function ProfilePage() {
             title="Watched"
             icon={<span className="text-green-500">&#9679;</span>}
             movies={watchedMovies}
-            emptyText="No movies watched yet. Start marking movies as watched!"
+            emptyText="No movies watched yet."
           />
 
           {/* ── Watch Later ────────────────────────────────────────────────── */}
@@ -440,7 +517,7 @@ export default function ProfilePage() {
             title="Watch Later"
             icon={<span className="text-amber-500">&#9679;</span>}
             movies={watchlistMovies}
-            emptyText="Your watch later list is empty. Add movies from the detail page!"
+            emptyText="Watch later list is empty."
           />
         </div>
       </main>
