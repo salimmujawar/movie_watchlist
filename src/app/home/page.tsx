@@ -137,13 +137,14 @@ function FromYourCircleCarousel({ currentUserId, refreshKey }: { currentUserId: 
 
   // Load movies watched by people the user follows
   useEffect(() => {
-    if (!currentUserId) { setLoaded(true); return; }
+    const myId = currentUserId || localStorage.getItem("cinecircle_user_id");
+    if (!myId) { setLoaded(true); return; }
     async function loadCircleMovies() {
       // Get IDs of users I follow
       const { data: follows } = await supabase
         .from("follows")
         .select("following_id")
-        .eq("follower_id", currentUserId);
+        .eq("follower_id", myId);
 
       if (!follows || follows.length === 0) {
         setMovies([]);
@@ -716,6 +717,7 @@ function CineMatesCarousel({ currentUserId, onFollowChange }: { currentUserId: s
   // Load real user IDs from Supabase + existing follow state
   useEffect(() => {
     async function loadCineMates() {
+      const myId = currentUserId || localStorage.getItem("cinecircle_user_id");
       const googleIds = CINEMATES_SEED.map((m) => m.googleId);
       const { data: users } = await supabase
         .from("users")
@@ -734,12 +736,12 @@ function CineMatesCarousel({ currentUserId, onFollowChange }: { currentUserId: s
         }));
 
         // Load which ones the current user already follows — exclude them from the list
-        if (currentUserId) {
+        if (myId) {
           const followingIds = Object.values(idMap);
           const { data: follows } = await supabase
             .from("follows")
             .select("following_id")
-            .eq("follower_id", currentUserId)
+            .eq("follower_id", myId)
             .in("following_id", followingIds);
 
           if (follows && follows.length > 0) {
@@ -777,8 +779,9 @@ function CineMatesCarousel({ currentUserId, onFollowChange }: { currentUserId: s
   };
 
   const toggleFollow = async (mate: CineMate) => {
-    if (!currentUserId || !mate.userId) {
-      console.warn("[CineMates] toggleFollow skipped — currentUserId:", currentUserId, "mate.userId:", mate.userId);
+    const userId = currentUserId || localStorage.getItem("cinecircle_user_id");
+    if (!userId || !mate.userId) {
+      console.warn("[CineMates] toggleFollow skipped — userId:", userId, "mate.userId:", mate.userId);
       return;
     }
     const mateId = mate.userId;
@@ -791,7 +794,7 @@ function CineMatesCarousel({ currentUserId, onFollowChange }: { currentUserId: s
         const res = await fetch("/api/follow", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ follower_id: currentUserId, following_id: mateId }),
+          body: JSON.stringify({ follower_id: userId, following_id: mateId }),
         });
         const json = await res.json();
         if (json.success) {
@@ -802,7 +805,7 @@ function CineMatesCarousel({ currentUserId, onFollowChange }: { currentUserId: s
         const res = await fetch("/api/follow", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ follower_id: currentUserId, following_id: mateId }),
+          body: JSON.stringify({ follower_id: userId, following_id: mateId }),
         });
         const json = await res.json();
         if (json.success) {
