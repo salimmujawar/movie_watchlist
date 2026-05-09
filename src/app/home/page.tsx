@@ -128,7 +128,7 @@ function CircleMovieCard({ movie }: { movie: CircleMovie }) {
   );
 }
 
-function FromYourCircleCarousel({ currentUserId }: { currentUserId: string | null }) {
+function FromYourCircleCarousel({ currentUserId, refreshKey }: { currentUserId: string | null; refreshKey: number }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -192,7 +192,7 @@ function FromYourCircleCarousel({ currentUserId }: { currentUserId: string | nul
       setLoaded(true);
     }
     loadCircleMovies();
-  }, [currentUserId]);
+  }, [currentUserId, refreshKey]);
 
   const checkScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -705,7 +705,7 @@ function CineMateCard({
   );
 }
 
-function CineMatesCarousel({ currentUserId }: { currentUserId: string | null }) {
+function CineMatesCarousel({ currentUserId, onFollowChange }: { currentUserId: string | null; onFollowChange: () => void }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -728,14 +728,12 @@ function CineMatesCarousel({ currentUserId }: { currentUserId: string | null }) 
           idMap[u.google_id] = u.id;
         });
 
-        setMates(
-          CINEMATES_SEED.map((m) => ({
-            ...m,
-            userId: idMap[m.googleId] || null,
-          }))
-        );
+        const enriched = CINEMATES_SEED.map((m) => ({
+          ...m,
+          userId: idMap[m.googleId] || null,
+        }));
 
-        // Load which ones the current user already follows
+        // Load which ones the current user already follows — exclude them from the list
         if (currentUserId) {
           const followingIds = Object.values(idMap);
           const { data: follows } = await supabase
@@ -744,13 +742,15 @@ function CineMatesCarousel({ currentUserId }: { currentUserId: string | null }) 
             .eq("follower_id", currentUserId)
             .in("following_id", followingIds);
 
-          if (follows) {
-            const fState: Record<string, boolean> = {};
-            follows.forEach((f: { following_id: string }) => {
-              fState[f.following_id] = true;
-            });
-            setFollowState(fState);
+          if (follows && follows.length > 0) {
+            const followedSet = new Set(follows.map((f: { following_id: string }) => f.following_id));
+            // Remove already-followed users from CineMates
+            setMates(enriched.filter((m) => !m.userId || !followedSet.has(m.userId)));
+          } else {
+            setMates(enriched);
           }
+        } else {
+          setMates(enriched);
         }
       }
     }
@@ -794,8 +794,10 @@ function CineMatesCarousel({ currentUserId }: { currentUserId: string | null }) 
           body: JSON.stringify({ follower_id: currentUserId, following_id: mateId }),
         });
         const json = await res.json();
-        console.log("[CineMates] unfollow response:", json);
-        if (json.success) setFollowState((prev) => ({ ...prev, [mateId]: false }));
+        if (json.success) {
+          setFollowState((prev) => ({ ...prev, [mateId]: false }));
+          onFollowChange();
+        }
       } else {
         const res = await fetch("/api/follow", {
           method: "POST",
@@ -803,8 +805,12 @@ function CineMatesCarousel({ currentUserId }: { currentUserId: string | null }) 
           body: JSON.stringify({ follower_id: currentUserId, following_id: mateId }),
         });
         const json = await res.json();
-        console.log("[CineMates] follow response:", json);
-        if (json.success) setFollowState((prev) => ({ ...prev, [mateId]: true }));
+        if (json.success) {
+          setFollowState((prev) => ({ ...prev, [mateId]: true }));
+          // Remove from CineMates list after following
+          setMates((prev) => prev.filter((m) => m.userId !== mateId));
+          onFollowChange();
+        }
       }
     } catch (err) {
       console.error("[CineMates] follow toggle error:", err);
@@ -875,6 +881,7 @@ export default function HomePage() {
   const router = useRouter();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [followVersion, setFollowVersion] = useState(0);
 
   // Load user from Supabase Auth session on mount
   useEffect(() => {
@@ -954,9 +961,9 @@ export default function HomePage() {
 
           <AIRecommendationCarousel currentUserId={user?.id || null} />
 
-          <FromYourCircleCarousel currentUserId={user?.id || null} />
+          <FromYourCircleCarousel currentUserId={user?.id || null} refreshKey={followVersion} />
 
-          <CineMatesCarousel currentUserId={user?.id || null} />
+          <CineMatesCarousel currentUserId={user?.id || null} onFollowChange={() => setFollowVersion((v) => v + 1)} />
         </div>
       </main>
     </div>
