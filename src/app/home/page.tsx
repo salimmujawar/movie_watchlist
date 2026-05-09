@@ -269,26 +269,36 @@ function FromYourCircleCarousel({ currentUserId }: { currentUserId: string | nul
   );
 }
 
-interface TrendingMovie {
-  tmdb_id?: number;
+// ─── AI Recommendation Types & Components ───────────────────────────────────
+
+interface AIMovie {
+  tmdb_id: number;
   title: string;
-  year: number;
+  release_year: number;
+  poster_url: string;
   rating: number;
-  poster: string;
-  rank: number;
+  match_score: number;
+  match_reason: string;
+  genres: string[];
 }
 
-function TrendingMovieCard({ movie }: { movie: TrendingMovie }) {
+function AIMovieCard({ movie }: { movie: AIMovie }) {
+  const matchColor =
+    movie.match_score >= 90 ? "#22c55e"
+      : movie.match_score >= 80 ? "#84cc16"
+        : movie.match_score >= 70 ? "#f59e0b"
+          : "#8b5cf6";
+
   const cardContent = (
     <>
       <div
         className="relative rounded-xl overflow-hidden"
         style={{ width: "100%", height: 260 }}
       >
-        {movie.poster ? (
+        {movie.poster_url ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
-            src={movie.poster}
+            src={movie.poster_url}
             alt={movie.title}
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             loading="lazy"
@@ -298,6 +308,20 @@ function TrendingMovieCard({ movie }: { movie: TrendingMovie }) {
             No Poster
           </div>
         )}
+
+        {/* Match score badge */}
+        <div
+          className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold z-10"
+          style={{
+            background: "rgba(0,0,0,0.75)",
+            backdropFilter: "blur(8px)",
+          }}
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill={matchColor}>
+            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+          </svg>
+          <span style={{ color: matchColor }}>{movie.match_score}%</span>
+        </div>
 
         {/* Rating badge */}
         <div
@@ -313,32 +337,20 @@ function TrendingMovieCard({ movie }: { movie: TrendingMovie }) {
           <span className="text-white">{movie.rating}</span>
         </div>
 
-        {/* Trending badge at bottom */}
+        {/* AI Pick badge at bottom */}
         <div className="absolute bottom-0 left-0 right-0 p-2 z-10">
           <div
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-white"
             style={{
-              background: "linear-gradient(135deg, rgba(229,9,20,0.85) 0%, rgba(220,38,38,0.85) 100%)",
+              background: "linear-gradient(135deg, rgba(139,92,246,0.85) 0%, rgba(99,102,241,0.85) 100%)",
               backdropFilter: "blur(8px)",
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-              <polyline points="17 6 23 6 23 12" />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="shrink-0">
+              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
             </svg>
-            Trending
+            AI Pick
           </div>
-        </div>
-
-        {/* Rank number */}
-        <div
-          className="absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white z-10"
-          style={{
-            background: "rgba(0,0,0,0.7)",
-            backdropFilter: "blur(8px)",
-          }}
-        >
-          {movie.rank}
         </div>
 
         <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -346,7 +358,7 @@ function TrendingMovieCard({ movie }: { movie: TrendingMovie }) {
 
       <div className="px-1 mt-2" style={{ height: 38 }}>
         <p className="text-white text-sm font-medium truncate">{movie.title}</p>
-        <p className="text-white/40 text-xs">{movie.year}</p>
+        <p className="text-white/40 text-xs">{movie.release_year}</p>
       </div>
     </>
   );
@@ -360,7 +372,7 @@ function TrendingMovieCard({ movie }: { movie: TrendingMovie }) {
     display: "block",
   };
 
-  return movie.tmdb_id ? (
+  return (
     <Link
       href={`/movie/${movie.tmdb_id}`}
       className="group cursor-pointer"
@@ -368,53 +380,80 @@ function TrendingMovieCard({ movie }: { movie: TrendingMovie }) {
     >
       {cardContent}
     </Link>
-  ) : (
-    <div className="group cursor-pointer" style={cardStyle}>
-      {cardContent}
-    </div>
   );
 }
 
-function TrendingCarousel() {
+function AIRecommendationCarousel({ currentUserId }: { currentUserId: string | null }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
-  const [movies, setMovies] = useState<TrendingMovie[]>([]);
+  const [movies, setMovies] = useState<AIMovie[]>([]);
+  const [userSummary, setUserSummary] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  // Fetch trending movies from our cached API
   useEffect(() => {
-    fetch("/api/trending")
+    if (!currentUserId) { setLoading(false); return; }
+
+    fetch(`/api/ai-recommend?user_id=${currentUserId}`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.movies) {
-          const mapped: TrendingMovie[] = data.movies.map(
-            (m: {
-              tmdb_id: number;
-              title: string;
-              release_date: string;
-              vote_average: number;
-              poster_path: string | null;
-              rank: number;
-            }) => ({
-              tmdb_id: m.tmdb_id,
-              title: m.title,
-              year: m.release_date
-                ? parseInt(m.release_date.split("-")[0], 10)
-                : 0,
-              rating: m.vote_average,
-              poster: m.poster_path
-                ? `https://image.tmdb.org/t/p/w500${m.poster_path}`
-                : "",
-              rank: m.rank,
-            })
-          );
-          setMovies(mapped);
+        if (data.error) {
+          setError(true);
+          setLoading(false);
+          return;
         }
+
+        // Collect all movies from the response
+        const allMovies: AIMovie[] = [];
+
+        // Featured movie goes first
+        if (data.featured) {
+          allMovies.push({
+            tmdb_id: data.featured.tmdb_id,
+            title: data.featured.title,
+            release_year: data.featured.release_year,
+            poster_url: data.featured.poster_url || "",
+            rating: data.featured.rating,
+            match_score: data.featured.match_score,
+            match_reason: data.featured.match_reason || "",
+            genres: data.featured.genres || [],
+          });
+        }
+
+        // Movies from each section
+        if (data.sections) {
+          for (const section of data.sections) {
+            if (section.movies) {
+              for (const m of section.movies) {
+                // Avoid duplicates
+                if (!allMovies.find((am) => am.tmdb_id === m.tmdb_id)) {
+                  allMovies.push({
+                    tmdb_id: m.tmdb_id,
+                    title: m.title,
+                    release_year: m.release_year,
+                    poster_url: m.poster_url || "",
+                    rating: m.rating,
+                    match_score: m.match_score,
+                    match_reason: m.match_reason || "",
+                    genres: m.genres || [],
+                  });
+                }
+              }
+            }
+          }
+        }
+
+        // Take up to 10
+        setMovies(allMovies.slice(0, 10));
+        if (data.user_summary) setUserSummary(data.user_summary);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
-  }, []);
+      .catch(() => {
+        setError(true);
+        setLoading(false);
+      });
+  }, [currentUserId]);
 
   const checkScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -439,44 +478,80 @@ function TrendingCarousel() {
 
   return (
     <section className="py-6">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-1">
         <h3 className="text-lg font-semibold flex items-center gap-2">
-          <span className="text-red-500">&#9679;</span>
-          Trending Now
+          <span
+            className="w-5 h-5 rounded-full flex items-center justify-center"
+            style={{
+              background: "linear-gradient(135deg, #8b5cf6, #6366f1)",
+              boxShadow: "0 0 8px rgba(139,92,246,0.4)",
+            }}
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="white">
+              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+            </svg>
+          </span>
+          AI Recommendations
         </h3>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => scroll("left")}
-            disabled={!canScrollLeft}
-            className="w-8 h-8 rounded-full flex items-center justify-center transition-all disabled:opacity-20 hover:bg-white/10"
-            style={{ border: "1px solid rgba(255,255,255,0.15)" }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
-          <button
-            onClick={() => scroll("right")}
-            disabled={!canScrollRight}
-            className="w-8 h-8 rounded-full flex items-center justify-center transition-all disabled:opacity-20 hover:bg-white/10"
-            style={{ border: "1px solid rgba(255,255,255,0.15)" }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
-        </div>
+        {movies.length > 0 && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => scroll("left")}
+              disabled={!canScrollLeft}
+              className="w-8 h-8 rounded-full flex items-center justify-center transition-all disabled:opacity-20 hover:bg-white/10"
+              style={{ border: "1px solid rgba(255,255,255,0.15)" }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <button
+              onClick={() => scroll("right")}
+              disabled={!canScrollRight}
+              className="w-8 h-8 rounded-full flex items-center justify-center transition-all disabled:opacity-20 hover:bg-white/10"
+              style={{ border: "1px solid rgba(255,255,255,0.15)" }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
+
+      {userSummary && (
+        <p className="text-white/30 text-sm mb-4 max-w-lg">{userSummary}</p>
+      )}
+      {!userSummary && !loading && (
+        <p className="text-white/30 text-sm mb-4">Personalized picks powered by your movie DNA.</p>
+      )}
 
       {loading ? (
         <div className="flex gap-4">
           {[...Array(5)].map((_, i) => (
-            <div
-              key={i}
-              className="rounded-xl animate-pulse"
-              style={{ width: 180, minWidth: 180, height: 260, background: "rgba(255,255,255,0.06)" }}
-            />
+            <div key={i} className="shrink-0" style={{ width: 180 }}>
+              <div
+                className="rounded-xl animate-pulse"
+                style={{ width: 180, height: 260, background: "rgba(139,92,246,0.08)" }}
+              />
+              <div className="mt-2 space-y-1.5 px-1">
+                <div className="h-3.5 bg-white/5 rounded w-3/4 animate-pulse" />
+                <div className="h-3 bg-white/5 rounded w-1/2 animate-pulse" />
+              </div>
+            </div>
           ))}
+        </div>
+      ) : error || movies.length === 0 ? (
+        <div
+          className="rounded-xl py-10 text-center"
+          style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
+        >
+          <div className="text-3xl mb-2">🤖</div>
+          <p className="text-white/40 text-sm">
+            {error
+              ? "AI recommendations are warming up. Check back soon!"
+              : "Complete onboarding to unlock AI picks."}
+          </p>
         </div>
       ) : (
         <div
@@ -485,7 +560,7 @@ function TrendingCarousel() {
           style={{ scrollSnapType: "x mandatory", scrollbarWidth: "none" }}
         >
           {movies.map((movie) => (
-            <TrendingMovieCard key={movie.title} movie={movie} />
+            <AIMovieCard key={movie.tmdb_id} movie={movie} />
           ))}
         </div>
       )}
@@ -866,7 +941,7 @@ export default function HomePage() {
             </p>
           </section>
 
-          <TrendingCarousel />
+          <AIRecommendationCarousel currentUserId={user?.id || null} />
 
           <FromYourCircleCarousel currentUserId={user?.id || null} />
 
