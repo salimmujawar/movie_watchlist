@@ -29,9 +29,15 @@ const CIRCLE_MOVIES: CircleMovie[] = [
 
 function CircleMovieCard({ movie }: { movie: CircleMovie }) {
   return (
-    <div className="shrink-0 w-[160px] sm:w-[180px] group cursor-pointer">
+    <div
+      className="group cursor-pointer"
+      style={{ width: 180, minWidth: 180, maxWidth: 180, flexShrink: 0, overflow: "hidden" }}
+    >
       {/* Poster */}
-      <div className="relative w-full h-[240px] sm:h-[270px] rounded-xl overflow-hidden mb-2">
+      <div
+        className="relative rounded-xl overflow-hidden"
+        style={{ width: "100%", height: 260 }}
+      >
         {movie.poster ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -84,7 +90,7 @@ function CircleMovieCard({ movie }: { movie: CircleMovie }) {
       </div>
 
       {/* Info below poster — fixed height */}
-      <div className="px-1 h-[54px]">
+      <div className="px-1 mt-2" style={{ height: 54 }}>
         <div className="flex items-center gap-1.5 mb-1">
           <div className="flex -space-x-1.5">
             {[0, 1, 2].map((j) => (
@@ -166,7 +172,7 @@ function FromYourCircleCarousel() {
 
       <div
         ref={scrollRef}
-        className="flex gap-4 overflow-x-auto overflow-y-visible pb-2 scrollbar-hide"
+        className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide"
         style={{
           scrollSnapType: "x mandatory",
           msOverflowStyle: "none",
@@ -174,9 +180,7 @@ function FromYourCircleCarousel() {
         }}
       >
         {CIRCLE_MOVIES.map((movie) => (
-          <div key={movie.title} style={{ scrollSnapAlign: "start" }}>
-            <CircleMovieCard movie={movie} />
-          </div>
+          <CircleMovieCard key={movie.title} movie={movie} />
         ))}
       </div>
     </section>
@@ -193,17 +197,12 @@ interface TrendingMovie {
 }
 
 function TrendingMovieCard({ movie }: { movie: TrendingMovie }) {
-  const Wrapper = movie.tmdb_id
-    ? ({ children, className }: { children: React.ReactNode; className: string }) => (
-        <Link href={`/movie/${movie.tmdb_id}`} className={className}>{children}</Link>
-      )
-    : ({ children, className }: { children: React.ReactNode; className: string }) => (
-        <div className={className}>{children}</div>
-      );
-
-  return (
-    <Wrapper className="shrink-0 w-[160px] sm:w-[180px] group cursor-pointer">
-      <div className="relative w-full h-[240px] sm:h-[270px] rounded-xl overflow-hidden mb-2">
+  const cardContent = (
+    <>
+      <div
+        className="relative rounded-xl overflow-hidden"
+        style={{ width: "100%", height: 260 }}
+      >
         {movie.poster ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -263,11 +262,34 @@ function TrendingMovieCard({ movie }: { movie: TrendingMovie }) {
         <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
 
-      <div className="px-1 h-[38px]">
+      <div className="px-1 mt-2" style={{ height: 38 }}>
         <p className="text-white text-sm font-medium truncate">{movie.title}</p>
         <p className="text-white/40 text-xs">{movie.year}</p>
       </div>
-    </Wrapper>
+    </>
+  );
+
+  const cardStyle: React.CSSProperties = {
+    width: 180,
+    minWidth: 180,
+    maxWidth: 180,
+    flexShrink: 0,
+    overflow: "hidden",
+    display: "block",
+  };
+
+  return movie.tmdb_id ? (
+    <Link
+      href={`/movie/${movie.tmdb_id}`}
+      className="group cursor-pointer"
+      style={cardStyle}
+    >
+      {cardContent}
+    </Link>
+  ) : (
+    <div className="group cursor-pointer" style={cardStyle}>
+      {cardContent}
+    </div>
   );
 }
 
@@ -369,21 +391,19 @@ function TrendingCarousel() {
           {[...Array(5)].map((_, i) => (
             <div
               key={i}
-              className="shrink-0 w-[160px] sm:w-[180px] aspect-[2/3] rounded-xl animate-pulse"
-              style={{ background: "rgba(255,255,255,0.06)" }}
+              className="rounded-xl animate-pulse"
+              style={{ width: 180, minWidth: 180, height: 260, background: "rgba(255,255,255,0.06)" }}
             />
           ))}
         </div>
       ) : (
         <div
           ref={scrollRef}
-          className="flex gap-4 overflow-x-auto overflow-y-visible pb-2 scrollbar-hide"
+          className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide"
           style={{ scrollSnapType: "x mandatory", scrollbarWidth: "none" }}
         >
           {movies.map((movie) => (
-            <div key={movie.title} style={{ scrollSnapAlign: "start" }}>
-              <TrendingMovieCard movie={movie} />
-            </div>
+            <TrendingMovieCard key={movie.title} movie={movie} />
           ))}
         </div>
       )}
