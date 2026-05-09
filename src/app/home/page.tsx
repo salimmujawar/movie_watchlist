@@ -630,8 +630,7 @@ interface CineMate {
   initials: string;
 }
 
-// Fallback seed data — used if the /api/cinemates call fails
-const CINEMATES_FALLBACK: CineMate[] = [
+const CINEMATES_SEED: CineMate[] = [
   { userId: null, googleId: "cinemate_aarav",  name: "Aarav Kapoor",   handle: "@framesbyaarav",       bio: "Lives for Nolan, neon noir & existential sci-fi.",        watched: 428, followers: "1.2K", tags: ["Sci-Fi", "Slow Burn", "Thriller"],              aiSignal: "Top Sci-Fi Curator",         avatarBg: "linear-gradient(135deg, #e50914, #b20710)", initials: "AK" },
   { userId: null, googleId: "cinemate_zoya",   name: "Zoya Mirza",     handle: "@zoyawatches",         bio: "Rom-coms, rainy films & emotionally damaging endings.",   watched: 312, followers: "842",  tags: ["Romance", "Indie", "Drama"],                    aiSignal: "Trusted by 96 cinephiles",   avatarBg: "linear-gradient(135deg, #ec4899, #be185d)", initials: "ZM" },
   { userId: null, googleId: "cinemate_ethan",  name: "Ethan Blake",    handle: "@cinemaholic_ethan",   bio: "Marvel by day, A24 by night.",                            watched: 590, followers: "2.8K", tags: ["Superhero", "Dark Comedy", "Psychological"],    aiSignal: "Most Watched This Month",    avatarBg: "linear-gradient(135deg, #3b82f6, #1d4ed8)", initials: "EB" },
@@ -760,36 +759,66 @@ function CineMatesCarousel({ currentUserId, onFollowChange }: { currentUserId: s
   const [mates, setMates] = useState<CineMate[]>([]);
   const [loaded, setLoaded] = useState(false);
 
-  // Load CineMates from server API — already filtered & enriched with real user IDs
+  // Load real user IDs + filter already-followed mates
+  // NOTE: HomePage only renders this component AFTER user is loaded (loading gate),
+  // so currentUserId is always valid here — no null-first-render race condition.
   useEffect(() => {
     const myId = currentUserId || localStorage.getItem("cinecircle_user_id");
-    if (!myId) return; // Wait until we have a user ID
+    if (!myId) {
+      setMates(CINEMATES_SEED);
+      setLoaded(true);
+      return;
+    }
 
     let cancelled = false;
 
-    fetch(`/api/cinemates?user_id=${myId}`)
-      .then((res) => res.json())
-      .then((data) => {
+    (async () => {
+      try {
+        // 1. Get real Supabase user IDs for the seeded CineMates
+        const googleIds = CINEMATES_SEED.map((m) => m.googleId);
+        const { data: users } = await supabase
+          .from("users")
+          .select("id, google_id")
+          .in("google_id", googleIds);
+
         if (cancelled) return;
-        if (data.mates && data.mates.length > 0) {
-          setMates(data.mates);
-        } else if (!data.error) {
-          // API returned empty mates (all followed) — keep mates empty
-          setMates([]);
-        } else {
-          // API error — show fallback seed data so section doesn't vanish
-          setMates(CINEMATES_FALLBACK);
+
+        const idMap: Record<string, string> = {};
+        if (users) {
+          for (const u of users) {
+            idMap[u.google_id] = u.id;
+          }
         }
-        setLoaded(true);
-      })
-      .catch((err) => {
-        console.error("[CineMates] load error:", err);
+
+        // 2. Get who the current user already follows
+        const { data: follows } = await supabase
+          .from("follows")
+          .select("following_id")
+          .eq("follower_id", myId);
+
+        if (cancelled) return;
+
+        const followedSet = new Set(
+          (follows || []).map((f: { following_id: string }) => f.following_id)
+        );
+
+        // 3. Enrich seed data with real IDs and filter out already-followed
+        const enriched = CINEMATES_SEED
+          .map((m) => ({ ...m, userId: idMap[m.googleId] || null }))
+          .filter((m) => !m.userId || !followedSet.has(m.userId));
+
         if (!cancelled) {
-          // Network/fetch error — show fallback so section still renders
-          setMates(CINEMATES_FALLBACK);
+          setMates(enriched);
           setLoaded(true);
         }
-      });
+      } catch (err) {
+        console.error("[CineMates] load error:", err);
+        if (!cancelled) {
+          setMates(CINEMATES_SEED);
+          setLoaded(true);
+        }
+      }
+    })();
 
     return () => { cancelled = true; };
   }, [currentUserId]);
