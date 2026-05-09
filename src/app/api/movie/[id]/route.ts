@@ -93,20 +93,25 @@ export async function GET(
       similar,
     };
 
-    // Try to get certification (content rating)
-    const certRes = await fetch(
-      `${TMDB_BASE_URL}/movie/${movieId}/release_dates`,
-      {
+    // Fetch certification and watch providers in parallel
+    const [certRes, watchRes] = await Promise.all([
+      fetch(`${TMDB_BASE_URL}/movie/${movieId}/release_dates`, {
         headers: {
           Authorization: `Bearer ${TMDB_ACCESS_TOKEN}`,
           Accept: "application/json",
         },
-      }
-    );
+      }),
+      fetch(`${TMDB_BASE_URL}/movie/${movieId}/watch/providers`, {
+        headers: {
+          Authorization: `Bearer ${TMDB_ACCESS_TOKEN}`,
+          Accept: "application/json",
+        },
+      }),
+    ]);
 
+    // Certification
     if (certRes.ok) {
       const certData = await certRes.json();
-      // Try US first, then any available
       const usRelease = certData.results?.find(
         (r: { iso_3166_1: string }) => r.iso_3166_1 === "US"
       );
@@ -115,7 +120,52 @@ export async function GET(
       }
     }
 
-    return NextResponse.json(movie);
+    // Watch providers — prefer US, fall back to IN, then GB
+    interface WatchProviderEntry {
+      provider_id: number;
+      provider_name: string;
+      logo_path: string | null;
+    }
+
+    interface WatchProviderRegion {
+      link?: string;
+      flatrate?: WatchProviderEntry[];
+      rent?: WatchProviderEntry[];
+      buy?: WatchProviderEntry[];
+      ads?: WatchProviderEntry[];
+      free?: WatchProviderEntry[];
+    }
+
+    let watchProviders: {
+      link: string | null;
+      stream: { id: number; name: string; logo: string | null }[];
+      rent: { id: number; name: string; logo: string | null }[];
+      buy: { id: number; name: string; logo: string | null }[];
+    } = { link: null, stream: [], rent: [], buy: [] };
+
+    if (watchRes.ok) {
+      const watchData = await watchRes.json();
+      const regions: WatchProviderRegion | undefined =
+        watchData.results?.US || watchData.results?.IN || watchData.results?.GB;
+
+      if (regions) {
+        const mapProviders = (list?: WatchProviderEntry[]) =>
+          (list || []).map((p) => ({
+            id: p.provider_id,
+            name: p.provider_name,
+            logo: p.logo_path,
+          }));
+
+        watchProviders = {
+          link: regions.link || null,
+          stream: mapProviders(regions.flatrate || regions.ads || regions.free),
+          rent: mapProviders(regions.rent),
+          buy: mapProviders(regions.buy),
+        };
+      }
+    }
+
+    return NextResponse.json({ ...movie, watch_providers: watchProviders });
   } catch (err) {
     console.error("Movie detail API error:", err);
     return NextResponse.json(
