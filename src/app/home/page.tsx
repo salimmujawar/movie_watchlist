@@ -31,7 +31,7 @@ function CircleMovieCard({ movie }: { movie: CircleMovie }) {
   return (
     <div className="shrink-0 w-[160px] sm:w-[180px] group cursor-pointer">
       {/* Poster */}
-      <div className="relative rounded-xl overflow-hidden mb-2" style={{ aspectRatio: "2/3" }}>
+      <div className="relative w-full h-[240px] sm:h-[270px] rounded-xl overflow-hidden mb-2">
         {movie.poster ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -203,7 +203,7 @@ function TrendingMovieCard({ movie }: { movie: TrendingMovie }) {
 
   return (
     <Wrapper className="shrink-0 w-[160px] sm:w-[180px] group cursor-pointer">
-      <div className="relative rounded-xl overflow-hidden mb-2" style={{ aspectRatio: "2/3" }}>
+      <div className="relative w-full h-[240px] sm:h-[270px] rounded-xl overflow-hidden mb-2">
         {movie.poster ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
