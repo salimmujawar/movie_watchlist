@@ -630,18 +630,7 @@ interface CineMate {
   initials: string;
 }
 
-const CINEMATES_SEED: CineMate[] = [
-  { userId: null, googleId: "cinemate_aarav",  name: "Aarav Kapoor",   handle: "@framesbyaarav",       bio: "Lives for Nolan, neon noir & existential sci-fi.",        watched: 428, followers: "1.2K", tags: ["Sci-Fi", "Slow Burn", "Thriller"],              aiSignal: "Top Sci-Fi Curator",         avatarBg: "linear-gradient(135deg, #e50914, #b20710)", initials: "AK" },
-  { userId: null, googleId: "cinemate_zoya",   name: "Zoya Mirza",     handle: "@zoyawatches",         bio: "Rom-coms, rainy films & emotionally damaging endings.",   watched: 312, followers: "842",  tags: ["Romance", "Indie", "Drama"],                    aiSignal: "Trusted by 96 cinephiles",   avatarBg: "linear-gradient(135deg, #ec4899, #be185d)", initials: "ZM" },
-  { userId: null, googleId: "cinemate_ethan",  name: "Ethan Blake",    handle: "@cinemaholic_ethan",   bio: "Marvel by day, A24 by night.",                            watched: 590, followers: "2.8K", tags: ["Superhero", "Dark Comedy", "Psychological"],    aiSignal: "Most Watched This Month",    avatarBg: "linear-gradient(135deg, #3b82f6, #1d4ed8)", initials: "EB" },
-  { userId: null, googleId: "cinemate_sana",   name: "Sana Sheikh",    handle: "@reelwithsana",        bio: "Plot twists > happy endings.",                            watched: 267, followers: "1.1K", tags: ["Mystery", "Thriller", "Crime"],                 aiSignal: "92% Taste Match",            avatarBg: "linear-gradient(135deg, #f59e0b, #d97706)", initials: "SS" },
-  { userId: null, googleId: "cinemate_liam",   name: "Liam Carter",    handle: "@pixelreels",          bio: "Give me time travel and heartbreak.",                     watched: 481, followers: "970",  tags: ["Sci-Fi", "Emotional Drama", "Mind-Bending"],   aiSignal: "Your Friends Follow Them",   avatarBg: "linear-gradient(135deg, #06b6d4, #0284c7)", initials: "LC" },
-  { userId: null, googleId: "cinemate_maya",   name: "Maya Fernandes", handle: "@mayaatthemovies",     bio: "Bollywood classics & comfort movies forever.",            watched: 355, followers: "1.6K", tags: ["Bollywood", "Musical", "Feel-Good"],            aiSignal: "Top Comfort Movie Curator",  avatarBg: "linear-gradient(135deg, #8b5cf6, #6d28d9)", initials: "MF" },
-  { userId: null, googleId: "cinemate_rohan",  name: "Rohan D’Souza", handle: "@rohanrewinds",        bio: "Horror movies are my therapy.",                           watched: 623, followers: "3.1K", tags: ["Horror", "Slasher", "Dark"],                   aiSignal: "Horror Expert Badge",        avatarBg: "linear-gradient(135deg, #ef4444, #b91c1c)", initials: "RD" },
-  { userId: null, googleId: "cinemate_chloe",  name: "Chloe Bennett",  handle: "@scenequeenchloe",     bio: "Obsessed with visually beautiful cinema.",                watched: 294, followers: "780",  tags: ["Aesthetic", "Indie", "Slow Cinema"],            aiSignal: "Critics Choice Creator",     avatarBg: "linear-gradient(135deg, #14b8a6, #0d9488)", initials: "CB" },
-  { userId: null, googleId: "cinemate_yusuf",  name: "Yusuf Khan",     handle: "@midnightframes",      bio: "Neo-noir, gangster films & chaotic antiheroes.",          watched: 510, followers: "2.2K", tags: ["Crime", "Noir", "Action"],                      aiSignal: "88% Taste Compatibility",    avatarBg: "linear-gradient(135deg, #f97316, #c2410c)", initials: "YK" },
-  { userId: null, googleId: "cinemate_elena",  name: "Elena Rossi",    handle: "@elenagoestocinema",   bio: "French films, heartbreak & long monologues.",             watched: 376, followers: "1.4K", tags: ["Foreign Cinema", "Drama", "Art House"],         aiSignal: "Trending Taste Profile",     avatarBg: "linear-gradient(135deg, #6366f1, #4f46e5)", initials: "ER" },
-];
+// CineMates seed data is now in /api/cinemates — client only needs the type
 
 function CineMateCard({
   mate,
@@ -759,67 +748,27 @@ function CineMatesCarousel({ currentUserId, onFollowChange }: { currentUserId: s
   const [mates, setMates] = useState<CineMate[]>([]);
   const [loaded, setLoaded] = useState(false);
 
-  // Load real user IDs from Supabase + filter out already-followed users
+  // Load CineMates from server API — already filtered & enriched with real user IDs
   useEffect(() => {
+    const myId = currentUserId || localStorage.getItem("cinecircle_user_id");
+    if (!myId) return; // Wait until we have a user ID
+
     let cancelled = false;
 
-    async function loadCineMates() {
-      const myId = currentUserId || localStorage.getItem("cinecircle_user_id");
-      if (!myId) {
-        // No user — show all mates without follow filtering
-        if (!cancelled) {
-          setMates(CINEMATES_SEED);
-          setLoaded(true);
-        }
-        return;
-      }
-
-      try {
-        // Step 1: Get real user IDs for the seeded CineMates
-        const googleIds = CINEMATES_SEED.map((m) => m.googleId);
-        const { data: users } = await supabase
-          .from("users")
-          .select("id, google_id")
-          .in("google_id", googleIds);
-
+    fetch(`/api/cinemates?user_id=${myId}`)
+      .then((res) => res.json())
+      .then((data) => {
         if (cancelled) return;
-
-        const idMap: Record<string, string> = {};
-        if (users) {
-          users.forEach((u: { id: string; google_id: string }) => {
-            idMap[u.google_id] = u.id;
-          });
+        if (data.mates) {
+          setMates(data.mates);
         }
+        setLoaded(true);
+      })
+      .catch((err) => {
+        console.error("[CineMates] load error:", err);
+        if (!cancelled) setLoaded(true);
+      });
 
-        const enriched = CINEMATES_SEED.map((m) => ({
-          ...m,
-          userId: idMap[m.googleId] || null,
-        }));
-
-        // Step 2: Get ALL users the current user follows (not just cinemates)
-        const { data: allFollows } = await supabase
-          .from("follows")
-          .select("following_id")
-          .eq("follower_id", myId);
-
-        if (cancelled) return;
-
-        if (allFollows && allFollows.length > 0) {
-          const followedSet = new Set(allFollows.map((f: { following_id: string }) => f.following_id));
-          // Remove any mate whose userId is in the followed set
-          setMates(enriched.filter((m) => !m.userId || !followedSet.has(m.userId)));
-        } else {
-          setMates(enriched);
-        }
-      } catch (err) {
-        console.error("[CineMates] loadCineMates error:", err);
-        if (!cancelled) setMates(CINEMATES_SEED);
-      }
-
-      if (!cancelled) setLoaded(true);
-    }
-
-    loadCineMates();
     return () => { cancelled = true; };
   }, [currentUserId]);
 
