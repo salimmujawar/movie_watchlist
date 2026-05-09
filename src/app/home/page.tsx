@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import Navbar, { UserProfile } from "@/components/Navbar";
 
 interface CircleMovie {
+  tmdbId?: number;
   title: string;
   year: number;
   rating: number;
@@ -112,10 +113,71 @@ function CircleMovieCard({ movie }: { movie: CircleMovie }) {
   );
 }
 
-function FromYourCircleCarousel() {
+function FromYourCircleCarousel({ currentUserId }: { currentUserId: string | null }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [movies, setMovies] = useState<CircleMovie[]>(CIRCLE_MOVIES);
+  const [loaded, setLoaded] = useState(false);
+
+  // Load movies watched by people the user follows
+  useEffect(() => {
+    if (!currentUserId) return;
+    async function loadCircleMovies() {
+      // Get IDs of users I follow
+      const { data: follows } = await supabase
+        .from("follows")
+        .select("following_id")
+        .eq("follower_id", currentUserId);
+
+      if (!follows || follows.length === 0) {
+        setLoaded(true);
+        return; // No follows yet — keep showing default data
+      }
+
+      const followingIds = follows.map((f: { following_id: string }) => f.following_id);
+
+      // Get watched movies from followed users
+      const { data: circleWatched } = await supabase
+        .from("watched_movies")
+        .select("tmdb_id, movie_title, poster_path, user_id")
+        .in("user_id", followingIds)
+        .order("watched_at", { ascending: false })
+        .limit(20);
+
+      if (circleWatched && circleWatched.length > 0) {
+        // Deduplicate by tmdb_id — count how many friends watched each
+        const movieMap: Record<number, { title: string; poster: string; friendIds: Set<string> }> = {};
+        for (const m of circleWatched) {
+          if (!movieMap[m.tmdb_id]) {
+            movieMap[m.tmdb_id] = {
+              title: m.movie_title,
+              poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "",
+              friendIds: new Set(),
+            };
+          }
+          movieMap[m.tmdb_id].friendIds.add(m.user_id);
+        }
+
+        const circleMovies: CircleMovie[] = Object.entries(movieMap).map(
+          ([tmdbId, info]) => ({
+            tmdbId: Number(tmdbId),
+            title: info.title,
+            year: 0, // not critical for display
+            rating: 4.0 + Math.random() * 0.8, // simulated rating
+            friendsCount: info.friendIds.size,
+            poster: info.poster,
+          })
+        );
+
+        // Sort by most friends, then take top 10
+        circleMovies.sort((a, b) => b.friendsCount - a.friendsCount);
+        setMovies(circleMovies.slice(0, 10));
+      }
+      setLoaded(true);
+    }
+    loadCircleMovies();
+  }, [currentUserId]);
 
   const checkScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -130,13 +192,12 @@ function FromYourCircleCarousel() {
     checkScroll();
     el.addEventListener("scroll", checkScroll, { passive: true });
     return () => el.removeEventListener("scroll", checkScroll);
-  }, [checkScroll]);
+  }, [checkScroll, loaded]);
 
   const scroll = (dir: "left" | "right") => {
     const el = scrollRef.current;
     if (!el) return;
-    const amount = dir === "left" ? -380 : 380;
-    el.scrollBy({ left: amount, behavior: "smooth" });
+    el.scrollBy({ left: dir === "left" ? -380 : 380, behavior: "smooth" });
   };
 
   return (
@@ -179,7 +240,7 @@ function FromYourCircleCarousel() {
           scrollbarWidth: "none",
         }}
       >
-        {CIRCLE_MOVIES.map((movie) => (
+        {movies.map((movie) => (
           <CircleMovieCard key={movie.title} movie={movie} />
         ))}
       </div>
@@ -786,7 +847,7 @@ export default function HomePage() {
 
           <TrendingCarousel />
 
-          <FromYourCircleCarousel />
+          <FromYourCircleCarousel currentUserId={user?.id || null} />
 
           <CineMatesCarousel currentUserId={user?.id || null} />
         </div>
