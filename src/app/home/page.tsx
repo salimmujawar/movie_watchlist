@@ -284,11 +284,29 @@ interface AIMovie {
 }
 
 function AIMovieCard({ movie }: { movie: AIMovie }) {
+  const [imgSrc, setImgSrc] = useState(movie.poster_url);
+  const [imgError, setImgError] = useState(false);
+
   const matchColor =
     movie.match_score >= 90 ? "#22c55e"
       : movie.match_score >= 80 ? "#84cc16"
         : movie.match_score >= 70 ? "#f59e0b"
           : "#8b5cf6";
+
+  // Fallback: if the webhook poster_url fails, fetch from TMDB by tmdb_id
+  const handleImgError = useCallback(() => {
+    if (!imgError && movie.tmdb_id) {
+      setImgError(true);
+      fetch(`/api/movie/${movie.tmdb_id}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.poster_path) {
+            setImgSrc(`https://image.tmdb.org/t/p/w500${data.poster_path}`);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [imgError, movie.tmdb_id]);
 
   const cardContent = (
     <>
@@ -296,13 +314,14 @@ function AIMovieCard({ movie }: { movie: AIMovie }) {
         className="relative rounded-xl overflow-hidden"
         style={{ width: "100%", height: 260 }}
       >
-        {movie.poster_url ? (
+        {imgSrc ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
-            src={movie.poster_url}
+            src={imgSrc}
             alt={movie.title}
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             loading="lazy"
+            onError={handleImgError}
           />
         ) : (
           <div className="absolute inset-0 bg-white/10 flex items-center justify-center text-white/30 text-xs">
@@ -398,7 +417,7 @@ function AIRecommendationCarousel({ currentUserId }: { currentUserId: string | n
 
     fetch(`/api/ai-recommend?user_id=${currentUserId}`)
       .then((res) => res.json())
-      .then((data) => {
+      .then(async (data) => {
         if (data.error) {
           setError(true);
           setLoading(false);
@@ -408,13 +427,23 @@ function AIRecommendationCarousel({ currentUserId }: { currentUserId: string | n
         // Collect all movies from the response
         const allMovies: AIMovie[] = [];
 
+        // Helper: ensure poster_url is a valid full URL
+        const fixPoster = (url?: string): string => {
+          if (!url) return "";
+          // Already a full URL (https://image.tmdb.org/...)
+          if (url.startsWith("http")) return url;
+          // Bare TMDB path like "/nBNZadXqJSdt05SHLqgT0HuC5Gm.jpg"
+          if (url.startsWith("/")) return `https://image.tmdb.org/t/p/w500${url}`;
+          return "";
+        };
+
         // Featured movie goes first
         if (data.featured) {
           allMovies.push({
             tmdb_id: data.featured.tmdb_id,
             title: data.featured.title,
             release_year: data.featured.release_year,
-            poster_url: data.featured.poster_url || "",
+            poster_url: fixPoster(data.featured.poster_url),
             rating: data.featured.rating,
             match_score: data.featured.match_score,
             match_reason: data.featured.match_reason || "",
@@ -433,7 +462,7 @@ function AIRecommendationCarousel({ currentUserId }: { currentUserId: string | n
                     tmdb_id: m.tmdb_id,
                     title: m.title,
                     release_year: m.release_year,
-                    poster_url: m.poster_url || "",
+                    poster_url: fixPoster(m.poster_url),
                     rating: m.rating,
                     match_score: m.match_score,
                     match_reason: m.match_reason || "",
@@ -443,6 +472,22 @@ function AIRecommendationCarousel({ currentUserId }: { currentUserId: string | n
               }
             }
           }
+        }
+
+        // Fetch posters from TMDB for any movies still missing images
+        const needPosters = allMovies.filter((m) => !m.poster_url && m.tmdb_id);
+        if (needPosters.length > 0) {
+          await Promise.all(
+            needPosters.map(async (m) => {
+              try {
+                const res = await fetch(`/api/movie/${m.tmdb_id}`);
+                const movieData = await res.json();
+                if (movieData.poster_path) {
+                  m.poster_url = `https://image.tmdb.org/t/p/w500${movieData.poster_path}`;
+                }
+              } catch { /* skip */ }
+            })
+          );
         }
 
         // Take up to 10
