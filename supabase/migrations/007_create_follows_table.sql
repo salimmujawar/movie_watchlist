@@ -13,12 +13,16 @@ CREATE TABLE IF NOT EXISTS follows (
 );
 
 -- Each user can only follow another user once
-ALTER TABLE follows
-    ADD CONSTRAINT uq_follow UNIQUE (follower_id, following_id);
+DO $$ BEGIN
+  ALTER TABLE follows ADD CONSTRAINT uq_follow UNIQUE (follower_id, following_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Prevent self-follows
-ALTER TABLE follows
-    ADD CONSTRAINT no_self_follow CHECK (follower_id != following_id);
+DO $$ BEGIN
+  ALTER TABLE follows ADD CONSTRAINT no_self_follow CHECK (follower_id != following_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Fast lookups: "who do I follow?" and "who follows me?"
 CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
@@ -28,13 +32,19 @@ CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id);
 ALTER TABLE follows ENABLE ROW LEVEL SECURITY;
 
 -- Everyone can see follow relationships (needed for counts on profiles)
-CREATE POLICY "Anyone can read follows"
-    ON follows FOR SELECT USING (true);
+DO $$ BEGIN
+  CREATE POLICY "Anyone can read follows" ON follows FOR SELECT USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Users can follow others
-CREATE POLICY "Users can insert follows"
-    ON follows FOR INSERT WITH CHECK (true);
+DO $$ BEGIN
+  CREATE POLICY "Users can insert follows" ON follows FOR INSERT WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Users can unfollow
-CREATE POLICY "Users can delete follows"
-    ON follows FOR DELETE USING (true);
+DO $$ BEGIN
+  CREATE POLICY "Users can delete follows" ON follows FOR DELETE USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
