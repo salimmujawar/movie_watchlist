@@ -845,190 +845,63 @@ export default function MovieDetailPage() {
             )}
 
             {/* ── Where to Watch ────────────────────────────────────────────── */}
-            {(movie.watch_providers.stream.length > 0 ||
-              movie.watch_providers.rent.length > 0 ||
-              movie.watch_providers.buy.length > 0) && (
-              <section className="mb-10">
-                <h3 className="text-lg font-semibold text-white mb-4">
-                  Where to Watch
-                </h3>
-                <div
-                  className="rounded-2xl p-5"
-                  style={{
-                    background:
-                      "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                  }}
-                >
-                  {/* Stream */}
-                  {movie.watch_providers.stream.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">
-                        Stream
-                      </p>
-                      <div className="flex flex-wrap gap-3">
-                        {movie.watch_providers.stream.map((p) => (
-                          <a
-                            key={p.id}
-                            href={movie.watch_providers.link || "#"}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all hover:scale-[1.03] hover:bg-white/10 group"
-                            style={{
-                              background: "rgba(255,255,255,0.05)",
-                              border: "1px solid rgba(255,255,255,0.1)",
-                            }}
-                          >
-                            {p.logo ? (
-                              /* eslint-disable-next-line @next/next/no-img-element */
-                              <img
-                                src={`https://image.tmdb.org/t/p/w92${p.logo}`}
-                                alt={p.name}
-                                className="w-8 h-8 rounded-lg object-cover"
-                              />
-                            ) : (
-                              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white/30 text-xs font-bold">
-                                {p.name.charAt(0)}
-                              </div>
-                            )}
-                            <span className="text-sm text-white/70 group-hover:text-white transition-colors">
-                              {p.name}
-                            </span>
-                            <svg
-                              width="12"
-                              height="12"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              className="text-white/20 group-hover:text-white/50 transition-colors ml-auto"
-                            >
-                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                              <polyline points="15 3 21 3 21 9" />
-                              <line x1="10" y1="14" x2="21" y2="3" />
-                            </svg>
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+            {(() => {
+              // Combine all providers, dedupe by id, cap at 5
+              const allProviders = [
+                ...movie.watch_providers.stream.map((p) => ({ ...p, type: "Stream" })),
+                ...movie.watch_providers.rent.map((p) => ({ ...p, type: "Rent" })),
+                ...movie.watch_providers.buy.map((p) => ({ ...p, type: "Buy" })),
+              ];
+              const seen = new Set<number>();
+              const unique = allProviders.filter((p) => {
+                if (seen.has(p.id)) return false;
+                seen.add(p.id);
+                return true;
+              }).slice(0, 5);
 
-                  {/* Rent */}
-                  {movie.watch_providers.rent.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">
-                        Rent
-                      </p>
-                      <div className="flex flex-wrap gap-3">
-                        {movie.watch_providers.rent.map((p) => (
-                          <a
-                            key={p.id}
-                            href={movie.watch_providers.link || "#"}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all hover:scale-[1.03] hover:bg-white/10 group"
-                            style={{
-                              background: "rgba(255,255,255,0.05)",
-                              border: "1px solid rgba(255,255,255,0.1)",
-                            }}
-                          >
-                            {p.logo ? (
-                              /* eslint-disable-next-line @next/next/no-img-element */
-                              <img
-                                src={`https://image.tmdb.org/t/p/w92${p.logo}`}
-                                alt={p.name}
-                                className="w-8 h-8 rounded-lg object-cover"
-                              />
-                            ) : (
-                              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white/30 text-xs font-bold">
-                                {p.name.charAt(0)}
-                              </div>
-                            )}
-                            <span className="text-sm text-white/70 group-hover:text-white transition-colors">
-                              {p.name}
-                            </span>
-                            <svg
-                              width="12"
-                              height="12"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              className="text-white/20 group-hover:text-white/50 transition-colors ml-auto"
-                            >
-                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                              <polyline points="15 3 21 3 21 9" />
-                              <line x1="10" y1="14" x2="21" y2="3" />
-                            </svg>
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+              if (unique.length === 0) return null;
 
-                  {/* Buy */}
-                  {movie.watch_providers.buy.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">
-                        Buy
-                      </p>
-                      <div className="flex flex-wrap gap-3">
-                        {movie.watch_providers.buy.map((p) => (
-                          <a
-                            key={p.id}
-                            href={movie.watch_providers.link || "#"}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all hover:scale-[1.03] hover:bg-white/10 group"
-                            style={{
-                              background: "rgba(255,255,255,0.05)",
-                              border: "1px solid rgba(255,255,255,0.1)",
-                            }}
-                          >
-                            {p.logo ? (
-                              /* eslint-disable-next-line @next/next/no-img-element */
-                              <img
-                                src={`https://image.tmdb.org/t/p/w92${p.logo}`}
-                                alt={p.name}
-                                className="w-8 h-8 rounded-lg object-cover"
-                              />
-                            ) : (
-                              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white/30 text-xs font-bold">
-                                {p.name.charAt(0)}
-                              </div>
-                            )}
-                            <span className="text-sm text-white/70 group-hover:text-white transition-colors">
-                              {p.name}
-                            </span>
-                            <svg
-                              width="12"
-                              height="12"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              className="text-white/20 group-hover:text-white/50 transition-colors ml-auto"
-                            >
-                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                              <polyline points="15 3 21 3 21 9" />
-                              <line x1="10" y1="14" x2="21" y2="3" />
-                            </svg>
-                          </a>
-                        ))}
+              return (
+                <section className="mb-10">
+                  <h3 className="text-lg font-semibold text-white mb-4">
+                    Where to Watch
+                  </h3>
+                  <div className="flex flex-wrap gap-3">
+                    {unique.map((p) => (
+                      <div
+                        key={p.id}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          border: "1px solid rgba(255,255,255,0.1)",
+                        }}
+                      >
+                        {p.logo ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img
+                            src={`https://image.tmdb.org/t/p/w92${p.logo}`}
+                            alt={p.name}
+                            className="w-8 h-8 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white/30 text-xs font-bold">
+                            {p.name.charAt(0)}
+                          </div>
+                        )}
+                        <div>
+                          <span className="text-sm text-white/70 block leading-tight">
+                            {p.name}
+                          </span>
+                          <span className="text-[10px] text-white/30">
+                            {p.type}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  )}
-
-                  {/* TMDB attribution */}
-                  <p className="text-[10px] text-white/20 mt-4">
-                    Powered by JustWatch via TMDB
-                  </p>
-                </div>
-              </section>
-            )}
+                    ))}
+                  </div>
+                </section>
+              );
+            })()}
 
             {/* ── Similar / More from Director ──────────────────────────────── */}
             <SimilarCarousel
