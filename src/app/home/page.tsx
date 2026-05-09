@@ -379,6 +379,208 @@ function TrendingCarousel() {
   );
 }
 
+// ─── CineMates Data & Components ──────────────────────────────────────────────
+
+interface CineMate {
+  name: string;
+  handle: string;
+  bio: string;
+  watched: number;
+  followers: string;
+  tags: string[];
+  aiSignal: string;
+  avatarBg: string;
+  initials: string;
+  following: boolean;
+}
+
+const CINEMATES: CineMate[] = [
+  { name: "Aarav Kapoor", handle: "@framesbyaarav", bio: "Lives for Nolan, neon noir & existential sci-fi.", watched: 428, followers: "1.2K", tags: ["Sci-Fi", "Slow Burn", "Thriller"], aiSignal: "Top Sci-Fi Curator", avatarBg: "linear-gradient(135deg, #e50914, #b20710)", initials: "AK", following: false },
+  { name: "Zoya Mirza", handle: "@zoyawatches", bio: "Rom-coms, rainy films & emotionally damaging endings.", watched: 312, followers: "842", tags: ["Romance", "Indie", "Drama"], aiSignal: "Trusted by 96 cinephiles", avatarBg: "linear-gradient(135deg, #ec4899, #be185d)", initials: "ZM", following: false },
+  { name: "Ethan Blake", handle: "@cinemaholic_ethan", bio: "Marvel by day, A24 by night.", watched: 590, followers: "2.8K", tags: ["Superhero", "Dark Comedy", "Psychological"], aiSignal: "Most Watched This Month", avatarBg: "linear-gradient(135deg, #3b82f6, #1d4ed8)", initials: "EB", following: false },
+  { name: "Sana Sheikh", handle: "@reelwithsana", bio: "Plot twists > happy endings.", watched: 267, followers: "1.1K", tags: ["Mystery", "Thriller", "Crime"], aiSignal: "92% Taste Match", avatarBg: "linear-gradient(135deg, #f59e0b, #d97706)", initials: "SS", following: false },
+  { name: "Liam Carter", handle: "@pixelreels", bio: "Give me time travel and heartbreak.", watched: 481, followers: "970", tags: ["Sci-Fi", "Emotional Drama", "Mind-Bending"], aiSignal: "Your Friends Follow Them", avatarBg: "linear-gradient(135deg, #06b6d4, #0284c7)", initials: "LC", following: false },
+  { name: "Maya Fernandes", handle: "@mayaatthemovies", bio: "Bollywood classics & comfort movies forever.", watched: 355, followers: "1.6K", tags: ["Bollywood", "Musical", "Feel-Good"], aiSignal: "Top Comfort Movie Curator", avatarBg: "linear-gradient(135deg, #8b5cf6, #6d28d9)", initials: "MF", following: false },
+  { name: "Rohan D’Souza", handle: "@rohanrewinds", bio: "Horror movies are my therapy.", watched: 623, followers: "3.1K", tags: ["Horror", "Slasher", "Dark"], aiSignal: "Horror Expert Badge", avatarBg: "linear-gradient(135deg, #ef4444, #b91c1c)", initials: "RD", following: false },
+  { name: "Chloe Bennett", handle: "@scenequeenchloe", bio: "Obsessed with visually beautiful cinema.", watched: 294, followers: "780", tags: ["Aesthetic", "Indie", "Slow Cinema"], aiSignal: "Critics Choice Creator", avatarBg: "linear-gradient(135deg, #14b8a6, #0d9488)", initials: "CB", following: false },
+  { name: "Yusuf Khan", handle: "@midnightframes", bio: "Neo-noir, gangster films & chaotic antiheroes.", watched: 510, followers: "2.2K", tags: ["Crime", "Noir", "Action"], aiSignal: "88% Taste Compatibility", avatarBg: "linear-gradient(135deg, #f97316, #c2410c)", initials: "YK", following: false },
+  { name: "Elena Rossi", handle: "@elenagoestocinema", bio: "French films, heartbreak & long monologues.", watched: 376, followers: "1.4K", tags: ["Foreign Cinema", "Drama", "Art House"], aiSignal: "Trending Taste Profile", avatarBg: "linear-gradient(135deg, #6366f1, #4f46e5)", initials: "ER", following: false },
+];
+
+function CineMateCard({
+  mate,
+  isFollowing,
+  onToggleFollow,
+}: {
+  mate: CineMate;
+  isFollowing: boolean;
+  onToggleFollow: () => void;
+}) {
+  return (
+    <div
+      className="shrink-0 w-[220px] sm:w-[240px] rounded-xl p-4 group transition-all hover:bg-white/[0.06]"
+      style={{
+        background: "rgba(255,255,255,0.03)",
+        border: "1px solid rgba(255,255,255,0.06)",
+      }}
+    >
+      {/* Avatar + Name */}
+      <div className="flex items-center gap-3 mb-3">
+        <div
+          className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
+          style={{ background: mate.avatarBg }}
+        >
+          {mate.initials}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-white text-sm font-semibold truncate">{mate.name}</p>
+          <p className="text-white/30 text-xs truncate">{mate.handle}</p>
+        </div>
+      </div>
+
+      {/* Bio */}
+      <p className="text-white/50 text-xs leading-relaxed mb-3 line-clamp-2">
+        &ldquo;{mate.bio}&rdquo;
+      </p>
+
+      {/* Tags */}
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {mate.tags.map((tag) => (
+          <span
+            key={tag}
+            className="text-[10px] font-medium px-2 py-0.5 rounded-full text-white/60"
+            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+          >
+            {tag}
+          </span>
+        ))}
+      </div>
+
+      {/* Stats row */}
+      <div className="flex items-center gap-3 mb-3 text-xs text-white/40">
+        <span className="flex items-center gap-1">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" />
+            <line x1="8" y1="21" x2="16" y2="21" />
+            <line x1="12" y1="17" x2="12" y2="21" />
+          </svg>
+          {mate.watched} Watched
+        </span>
+        <span className="flex items-center gap-1">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+          </svg>
+          {mate.followers}
+        </span>
+      </div>
+
+      {/* AI Signal badge */}
+      <div className="flex items-center gap-1.5 mb-4">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round">
+          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+        </svg>
+        <span className="text-[10px] font-medium text-purple-400">{mate.aiSignal}</span>
+      </div>
+
+      {/* Follow button */}
+      <button
+        onClick={onToggleFollow}
+        className="w-full py-2 rounded-full text-xs font-semibold transition-all"
+        style={{
+          background: isFollowing
+            ? "rgba(255,255,255,0.06)"
+            : "linear-gradient(135deg, #e50914 0%, #b20710 100%)",
+          color: isFollowing ? "rgba(255,255,255,0.5)" : "white",
+          border: isFollowing ? "1px solid rgba(255,255,255,0.15)" : "none",
+        }}
+      >
+        {isFollowing ? "Following" : "Follow"}
+      </button>
+    </div>
+  );
+}
+
+function CineMatesCarousel() {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+  const [followState, setFollowState] = useState<Record<string, boolean>>({});
+
+  const checkScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 10);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 10);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    checkScroll();
+    el.addEventListener("scroll", checkScroll, { passive: true });
+    return () => el.removeEventListener("scroll", checkScroll);
+  }, [checkScroll]);
+
+  const scroll = (dir: "left" | "right") => {
+    scrollRef.current?.scrollBy({ left: dir === "left" ? -380 : 380, behavior: "smooth" });
+  };
+
+  const toggleFollow = (handle: string) => {
+    setFollowState((prev) => ({ ...prev, [handle]: !prev[handle] }));
+  };
+
+  return (
+    <section className="py-6">
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <span className="text-purple-400">&#9679;</span>
+          CineMates
+        </h3>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => scroll("left")}
+            disabled={!canScrollLeft}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-all disabled:opacity-20 hover:bg-white/10"
+            style={{ border: "1px solid rgba(255,255,255,0.15)" }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <button
+            onClick={() => scroll("right")}
+            disabled={!canScrollRight}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-all disabled:opacity-20 hover:bg-white/10"
+            style={{ border: "1px solid rgba(255,255,255,0.15)" }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <p className="text-white/30 text-sm mb-4">People whose movie taste matches your vibe.</p>
+
+      <div
+        ref={scrollRef}
+        className="flex gap-4 overflow-x-auto overflow-y-visible pb-2 scrollbar-hide"
+        style={{ scrollSnapType: "x mandatory", msOverflowStyle: "none", scrollbarWidth: "none" }}
+      >
+        {CINEMATES.map((mate) => (
+          <div key={mate.handle} style={{ scrollSnapAlign: "start" }}>
+            <CineMateCard
+              mate={mate}
+              isFollowing={!!followState[mate.handle]}
+              onToggleFollow={() => toggleFollow(mate.handle)}
+            />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function getGreeting(): string {
   const hour = new Date().getHours();
   if (hour < 12) return "Good morning";
@@ -470,6 +672,8 @@ export default function HomePage() {
           <TrendingCarousel />
 
           <FromYourCircleCarousel />
+
+          <CineMatesCarousel />
         </div>
       </main>
     </div>
