@@ -36,68 +36,54 @@ function WatchTimeRing({ hours }: { hours: number }) {
   const radius = 38;
   const circumference = 2 * Math.PI * radius;
 
-  // Three segments for the ring
-  const seg1 = pct * 0.5 * circumference; // red-orange
-  const seg2 = pct * 0.3 * circumference; // yellow-green
-  const seg3 = pct * 0.2 * circumference; // blue-purple
+  const seg1 = pct * 0.5 * circumference;
+  const seg2 = pct * 0.3 * circumference;
+  const seg3 = pct * 0.2 * circumference;
 
   return (
     <svg width="90" height="90" viewBox="0 0 90 90">
-      {/* Background ring */}
-      <circle
-        cx="45"
-        cy="45"
-        r={radius}
-        fill="none"
-        stroke="rgba(255,255,255,0.08)"
-        strokeWidth="7"
-      />
-      {/* Segment 1: Red-Orange */}
-      <circle
-        cx="45"
-        cy="45"
-        r={radius}
-        fill="none"
-        stroke="#e50914"
-        strokeWidth="7"
-        strokeDasharray={`${seg1} ${circumference - seg1}`}
-        strokeDashoffset="0"
-        strokeLinecap="round"
-        transform="rotate(-90 45 45)"
-      />
-      {/* Segment 2: Yellow-Green */}
-      <circle
-        cx="45"
-        cy="45"
-        r={radius}
-        fill="none"
-        stroke="#facc15"
-        strokeWidth="7"
-        strokeDasharray={`${seg2} ${circumference - seg2}`}
-        strokeDashoffset={`${-seg1}`}
-        strokeLinecap="round"
-        transform="rotate(-90 45 45)"
-      />
-      {/* Segment 3: Blue-Purple */}
-      <circle
-        cx="45"
-        cy="45"
-        r={radius}
-        fill="none"
-        stroke="#8b5cf6"
-        strokeWidth="7"
-        strokeDasharray={`${seg3} ${circumference - seg3}`}
-        strokeDashoffset={`${-(seg1 + seg2)}`}
-        strokeLinecap="round"
-        transform="rotate(-90 45 45)"
-      />
+      <circle cx="45" cy="45" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="7" />
+      <circle cx="45" cy="45" r={radius} fill="none" stroke="#e50914" strokeWidth="7"
+        strokeDasharray={`${seg1} ${circumference - seg1}`} strokeDashoffset="0" strokeLinecap="round" transform="rotate(-90 45 45)" />
+      <circle cx="45" cy="45" r={radius} fill="none" stroke="#facc15" strokeWidth="7"
+        strokeDasharray={`${seg2} ${circumference - seg2}`} strokeDashoffset={`${-seg1}`} strokeLinecap="round" transform="rotate(-90 45 45)" />
+      <circle cx="45" cy="45" r={radius} fill="none" stroke="#8b5cf6" strokeWidth="7"
+        strokeDasharray={`${seg3} ${circumference - seg3}`} strokeDashoffset={`${-(seg1 + seg2)}`} strokeLinecap="round" transform="rotate(-90 45 45)" />
     </svg>
   );
 }
 
-// ─── Movie Carousel (shared for watched & watchlist) ──────────────────────────
+// ─── Movie Card (matches home page TrendingMovieCard style) ───────────────────
 
-function MovieCarousel({
+function ProfileMovieCard({ movie }: { movie: { tmdb_id: number; movie_title: string; poster_path: string | null } }) {
+  return (
+    <Link href={`/movie/${movie.tmdb_id}`} className="shrink-0 w-[160px] sm:w-[180px] group cursor-pointer">
+      <div className="relative aspect-[2/3] rounded-xl overflow-hidden mb-2">
+        {movie.poster_path ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={`https://image.tmdb.org/t/p/w300${movie.poster_path}`}
+            alt={movie.movie_title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full bg-white/10 flex items-center justify-center text-white/30 text-xs">
+            No Poster
+          </div>
+        )}
+        <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
+      <div className="px-1">
+        <p className="text-white text-sm font-medium truncate">{movie.movie_title}</p>
+      </div>
+    </Link>
+  );
+}
+
+// ─── Movie Carousel (matches home page carousel pattern) ──────────────────────
+
+function ProfileCarousel({
   title,
   icon,
   movies,
@@ -109,26 +95,44 @@ function MovieCarousel({
   emptyText: string;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const checkScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 10);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 10);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    checkScroll();
+    el.addEventListener("scroll", checkScroll, { passive: true });
+    return () => el.removeEventListener("scroll", checkScroll);
+  }, [checkScroll, movies]);
 
   const scroll = (dir: "left" | "right") => {
     scrollRef.current?.scrollBy({
-      left: dir === "left" ? -300 : 300,
+      left: dir === "left" ? -380 : 380,
       behavior: "smooth",
     });
   };
 
   return (
-    <section>
+    <section className="py-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
           {icon}
           {title}
         </h3>
-        {movies.length > 4 && (
-          <div className="flex gap-2">
+        {movies.length > 0 && (
+          <div className="flex items-center gap-2">
             <button
               onClick={() => scroll("left")}
-              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
+              disabled={!canScrollLeft}
+              className="w-8 h-8 rounded-full flex items-center justify-center transition-all disabled:opacity-20 hover:bg-white/10"
               style={{ border: "1px solid rgba(255,255,255,0.15)" }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
@@ -137,7 +141,8 @@ function MovieCarousel({
             </button>
             <button
               onClick={() => scroll("right")}
-              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
+              disabled={!canScrollRight}
+              className="w-8 h-8 rounded-full flex items-center justify-center transition-all disabled:opacity-20 hover:bg-white/10"
               style={{ border: "1px solid rgba(255,255,255,0.15)" }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
@@ -149,48 +154,17 @@ function MovieCarousel({
       </div>
 
       {movies.length === 0 ? (
-        <div
-          className="rounded-xl py-10 text-center"
-          style={{
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.06)",
-          }}
-        >
-          <p className="text-white/30 text-sm">{emptyText}</p>
-        </div>
+        <p className="text-white/30 text-sm py-4">{emptyText}</p>
       ) : (
         <div
           ref={scrollRef}
-          className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide"
-          style={{ scrollSnapType: "x mandatory", scrollbarWidth: "none" }}
+          className="flex gap-4 overflow-x-auto overflow-y-visible pb-2 scrollbar-hide"
+          style={{ scrollSnapType: "x mandatory", msOverflowStyle: "none", scrollbarWidth: "none" }}
         >
           {movies.map((m) => (
-            <Link
-              key={m.tmdb_id}
-              href={`/movie/${m.tmdb_id}`}
-              className="shrink-0 w-[120px] group"
-              style={{ scrollSnapAlign: "start" }}
-            >
-              <div className="relative aspect-[2/3] rounded-xl overflow-hidden mb-1.5">
-                {m.poster_path ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={`https://image.tmdb.org/t/p/w300${m.poster_path}`}
-                    alt={m.movie_title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-white/10 flex items-center justify-center text-white/30 text-xs">
-                    No Poster
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-              <p className="text-white text-xs font-medium truncate px-0.5">
-                {m.movie_title}
-              </p>
-            </Link>
+            <div key={m.tmdb_id} style={{ scrollSnapAlign: "start" }}>
+              <ProfileMovieCard movie={m} />
+            </div>
           ))}
         </div>
       )}
@@ -208,9 +182,7 @@ export default function ProfilePage() {
   const [watchlistMovies, setWatchlistMovies] = useState<WatchlistMovie[]>([]);
   const [watchedCount, setWatchedCount] = useState(0);
 
-  // Load profile, watched, and watchlist data
   const loadProfile = useCallback(async () => {
-    // Get user
     const { data: { session } } = await supabase.auth.getSession();
     let userId: string | null = null;
 
@@ -220,7 +192,6 @@ export default function ProfilePage() {
         .select("id, name, first_name, email, profile_image, onboarding_completed, bio, created_at")
         .eq("google_id", session.user.id)
         .single();
-
       if (data) {
         setUser(data as ProfileData);
         userId = data.id;
@@ -236,44 +207,30 @@ export default function ProfilePage() {
           .select("id, name, first_name, email, profile_image, onboarding_completed, bio, created_at")
           .eq("id", userId)
           .single();
-
         if (data) setUser(data as ProfileData);
-        else {
-          localStorage.removeItem("cinecircle_user_id");
-          router.replace("/");
-          return;
-        }
-      } else {
-        router.replace("/");
-        return;
-      }
+        else { localStorage.removeItem("cinecircle_user_id"); router.replace("/"); return; }
+      } else { router.replace("/"); return; }
     }
 
-    // Load watched movies
     const { data: watched, count: wCount } = await supabase
       .from("watched_movies")
       .select("id, tmdb_id, movie_title, poster_path, watched_at", { count: "exact" })
       .eq("user_id", userId)
       .order("watched_at", { ascending: false });
-
     if (watched) setWatchedMovies(watched);
     if (wCount !== null) setWatchedCount(wCount);
 
-    // Load watchlist
     const { data: watchlist } = await supabase
       .from("watchlist")
       .select("id, tmdb_id, movie_title, poster_path, added_at")
       .eq("user_id", userId)
       .order("added_at", { ascending: false });
-
     if (watchlist) setWatchlistMovies(watchlist);
 
     setLoading(false);
   }, [router]);
 
-  useEffect(() => {
-    loadProfile();
-  }, [loadProfile]);
+  useEffect(() => { loadProfile(); }, [loadProfile]);
 
   if (loading) {
     return (
@@ -285,7 +242,6 @@ export default function ProfilePage() {
 
   if (!user) return null;
 
-  // ── Compute watch time from watched count (assume avg 2h per movie)
   const totalHours = watchedCount * 2;
   const months = Math.floor(totalHours / (24 * 30));
   const days = Math.floor((totalHours % (24 * 30)) / 24);
@@ -295,8 +251,8 @@ export default function ProfilePage() {
   const userHandle = `@${(user.first_name || user.name || "user").replace(/\s+/g, "").toLowerCase()}`;
   const userImage = user.profile_image;
   const userInitial = userName.charAt(0).toUpperCase();
+  const badgeTitle = watchedCount >= 100 ? "Gold Taste Critic" : watchedCount >= 20 ? "Silver Critic" : "Movie Explorer";
 
-  // Demo follower/following counts (social features not yet built)
   const followers = 0;
   const following = 0;
 
@@ -304,216 +260,173 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       <Navbar user={user} />
 
-      <main className="pt-20 pb-32 px-4 sm:px-6">
-        <div className="max-w-2xl mx-auto">
-          {/* ── Profile Header ──────────────────────────────────────────────── */}
-          <div
-            className="rounded-2xl overflow-hidden mb-6"
-            style={{
-              background: "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)",
-              border: "1px solid rgba(255,255,255,0.08)",
-            }}
-          >
-            {/* Banner area */}
-            <div className="relative h-28 sm:h-36 overflow-hidden">
+      {/* ── Profile Hero Banner ────────────────────────────────────────────── */}
+      <div className="relative w-full h-[220px] sm:h-[260px] mt-[56px]">
+        <div
+          className="absolute inset-0"
+          style={{
+            background: "linear-gradient(135deg, #1a1a2e 0%, #0d0d1a 40%, #1a0a1a 70%, #0a0a0a 100%)",
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent" />
+      </div>
+
+      {/* ── Profile Content ────────────────────────────────────────────────── */}
+      <main className="relative z-10 -mt-28 pb-32 px-4 sm:px-6">
+        <div className="max-w-7xl mx-auto">
+
+          {/* ── Avatar + Info Row ──────────────────────────────────────────── */}
+          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-5 mb-8">
+            {/* Avatar */}
+            <div className="relative shrink-0">
+              {userImage ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={userImage}
+                  alt={userName}
+                  className="w-28 h-28 rounded-full object-cover ring-4 ring-[#0a0a0a]"
+                />
+              ) : (
+                <div
+                  className="w-28 h-28 rounded-full flex items-center justify-center text-white font-bold text-3xl ring-4 ring-[#0a0a0a]"
+                  style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}
+                >
+                  {userInitial}
+                </div>
+              )}
+              {/* Verified badge */}
               <div
-                className="absolute inset-0"
+                className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center"
                 style={{
-                  background: "linear-gradient(135deg, #1a1a2e 0%, #0a0a1a 50%, #1a0a1a 100%)",
+                  background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                  border: "3px solid #0a0a0a",
                 }}
-              />
-              {/* Subtle film strip decoration */}
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute top-4 left-1/4 w-20 h-20 border border-white/30 rounded" />
-                <div className="absolute top-8 right-1/4 w-16 h-16 border border-white/20 rounded rotate-12" />
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                </svg>
               </div>
             </div>
 
-            {/* Avatar */}
-            <div className="flex flex-col items-center -mt-14 relative z-10 px-6 pb-6">
-              <div className="relative mb-3">
-                {userImage ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={userImage}
-                    alt={userName}
-                    className="w-24 h-24 rounded-full object-cover ring-4 ring-[#0a0a0a]"
-                  />
-                ) : (
-                  <div
-                    className="w-24 h-24 rounded-full flex items-center justify-center text-white font-bold text-2xl ring-4 ring-[#0a0a0a]"
-                    style={{
-                      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                    }}
-                  >
-                    {userInitial}
-                  </div>
-                )}
-                {/* Verified badge */}
-                <div
-                  className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center"
-                  style={{
-                    background: "linear-gradient(135deg, #f59e0b, #d97706)",
-                    border: "2px solid #0a0a0a",
-                  }}
+            {/* Name + Handle + Bio */}
+            <div className="flex-1 min-w-0 text-center sm:text-left">
+              <div className="flex items-center gap-2 justify-center sm:justify-start mb-1">
+                <h1 className="text-2xl sm:text-3xl font-bold text-white">{userName}</h1>
+                <span
+                  className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                  style={{ background: "rgba(245, 158, 11, 0.15)", color: "#f59e0b" }}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
-                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                  </svg>
-                </div>
+                  {badgeTitle}
+                </span>
               </div>
-
-              {/* Badge title */}
-              <p className="text-amber-400 text-xs font-semibold mb-0.5">
-                {watchedCount >= 100 ? "Gold Taste Critic" : watchedCount >= 20 ? "Silver Critic" : "Movie Explorer"}
-              </p>
-              <p className="text-white/40 text-xs mb-1">{userHandle}</p>
-
-              {/* Name */}
-              <h1 className="text-2xl font-bold text-white mb-1">{userName}</h1>
-
-              {/* Bio */}
-              <p className="text-white/50 text-sm text-center max-w-xs mb-4">
+              <p className="text-white/40 text-sm mb-2">{userHandle}</p>
+              <p className="text-white/50 text-sm max-w-md">
                 {user.bio || "Movie enthusiast on CineCircle."}
               </p>
+            </div>
 
-              {/* Stats row */}
-              <div
-                className="flex items-center gap-0 rounded-full px-1 py-2 mb-5"
+            {/* Action Buttons (desktop right side) */}
+            <div className="flex gap-3 shrink-0">
+              <button
+                className="px-6 py-2.5 rounded-full text-sm font-semibold text-white transition-all hover:bg-white/15"
                 style={{
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.1)",
+                  background: "rgba(255,255,255,0.1)",
+                  border: "1px solid rgba(255,255,255,0.2)",
                 }}
               >
-                <div className="flex items-center px-4">
-                  <span className="text-white font-bold text-sm">{followers}</span>
-                  <span className="text-white/40 text-xs ml-1.5">Followers</span>
-                </div>
-                <div className="w-px h-4 bg-white/15" />
-                <div className="flex items-center px-4">
-                  <span className="text-white font-bold text-sm">{following}</span>
-                  <span className="text-white/40 text-xs ml-1.5">Following</span>
-                </div>
-                <div className="w-px h-4 bg-white/15" />
-                <div className="flex items-center px-4">
-                  <span className="text-white font-bold text-sm">{watchedCount}</span>
-                  <span className="text-white/40 text-xs ml-1.5">Watched</span>
-                </div>
-              </div>
-
-              {/* Action buttons */}
-              <div className="flex gap-3 w-full max-w-xs">
-                <button
-                  className="flex-1 py-2.5 rounded-full text-sm font-semibold text-white transition-all hover:opacity-90"
-                  style={{
-                    background: "rgba(255,255,255,0.1)",
-                    border: "1px solid rgba(255,255,255,0.2)",
-                  }}
-                >
-                  Edit Profile
-                </button>
-                <button
-                  className="flex-1 py-2.5 rounded-full text-sm font-semibold text-white transition-all hover:opacity-90"
-                  style={{
-                    background: "rgba(255,255,255,0.05)",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                  }}
-                >
-                  Share Profile
-                </button>
-              </div>
+                Edit Profile
+              </button>
+              <button
+                className="px-6 py-2.5 rounded-full text-sm font-semibold text-white transition-all hover:bg-white/15"
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                }}
+              >
+                Share Profile
+              </button>
             </div>
           </div>
 
-          {/* ── Movie Watch Time ────────────────────────────────────────────── */}
-          <div
-            className="rounded-2xl p-5 mb-6"
-            style={{
-              background: "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)",
-              border: "1px solid rgba(255,255,255,0.08)",
-            }}
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-lg">🎬</span>
-              <h3 className="text-base font-semibold text-white">Movie Watch Time</h3>
-              <span className="text-white/30 text-xs">- Your cinematic journey</span>
+          {/* ── Stats Row ──────────────────────────────────────────────────── */}
+          <div className="flex items-center gap-6 sm:gap-8 mb-8 justify-center sm:justify-start">
+            <div className="text-center sm:text-left">
+              <span className="text-xl font-bold text-white">{followers}</span>
+              <span className="text-white/40 text-sm ml-1.5">Followers</span>
             </div>
+            <div className="w-px h-5 bg-white/15" />
+            <div className="text-center sm:text-left">
+              <span className="text-xl font-bold text-white">{following}</span>
+              <span className="text-white/40 text-sm ml-1.5">Following</span>
+            </div>
+            <div className="w-px h-5 bg-white/15" />
+            <div className="text-center sm:text-left">
+              <span className="text-xl font-bold text-white">{watchedCount}</span>
+              <span className="text-white/40 text-sm ml-1.5">Watched</span>
+            </div>
+          </div>
 
-            <div className="flex items-center gap-6">
-              {/* Ring chart */}
+          {/* ── Movie Watch Time ───────────────────────────────────────────── */}
+          <section className="py-6">
+            <h3 className="text-lg font-semibold flex items-center gap-2 mb-1">
+              <span className="text-red-500">&#9679;</span>
+              Movie Watch Time
+            </h3>
+            <p className="text-white/30 text-sm mb-5">Your cinematic journey</p>
+
+            <div className="flex items-center gap-8">
               <div className="shrink-0">
                 <WatchTimeRing hours={totalHours} />
               </div>
 
-              {/* Time stats */}
-              <div className="flex gap-6">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-white">{months}</p>
-                  <p className="text-xs text-white/40 italic">Months</p>
+              <div className="flex gap-8 sm:gap-12">
+                <div>
+                  <p className="text-3xl font-bold text-white">{months}</p>
+                  <p className="text-xs text-white/40 mt-0.5">Months</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-white">{days}</p>
-                  <p className="text-xs text-white/40 italic">Days</p>
+                <div>
+                  <p className="text-3xl font-bold text-white">{days}</p>
+                  <p className="text-xs text-white/40 mt-0.5">Days</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-white">{hours}</p>
-                  <p className="text-xs text-white/40 italic">Hours</p>
+                <div>
+                  <p className="text-3xl font-bold text-white">{hours}</p>
+                  <p className="text-xs text-white/40 mt-0.5">Hours</p>
                 </div>
               </div>
 
               {/* Film reel decoration */}
-              <div className="hidden sm:block ml-auto opacity-30">
-                <svg width="60" height="60" viewBox="0 0 64 64" fill="none">
-                  <circle cx="32" cy="32" r="28" stroke="white" strokeWidth="2" />
-                  <circle cx="32" cy="32" r="8" stroke="white" strokeWidth="1.5" />
+              <div className="hidden md:block ml-auto opacity-20">
+                <svg width="70" height="70" viewBox="0 0 64 64" fill="none">
+                  <circle cx="32" cy="32" r="28" stroke="white" strokeWidth="1.5" />
+                  <circle cx="32" cy="32" r="8" stroke="white" strokeWidth="1" />
                   <circle cx="32" cy="12" r="4" fill="white" fillOpacity="0.3" />
                   <circle cx="32" cy="52" r="4" fill="white" fillOpacity="0.3" />
                   <circle cx="12" cy="32" r="4" fill="white" fillOpacity="0.3" />
                   <circle cx="52" cy="32" r="4" fill="white" fillOpacity="0.3" />
-                  <circle cx="17" cy="17" r="3" fill="white" fillOpacity="0.2" />
-                  <circle cx="47" cy="47" r="3" fill="white" fillOpacity="0.2" />
-                  <circle cx="47" cy="17" r="3" fill="white" fillOpacity="0.2" />
-                  <circle cx="17" cy="47" r="3" fill="white" fillOpacity="0.2" />
+                  <circle cx="17" cy="17" r="3" fill="white" fillOpacity="0.15" />
+                  <circle cx="47" cy="47" r="3" fill="white" fillOpacity="0.15" />
+                  <circle cx="47" cy="17" r="3" fill="white" fillOpacity="0.15" />
+                  <circle cx="17" cy="47" r="3" fill="white" fillOpacity="0.15" />
                 </svg>
               </div>
             </div>
-          </div>
+          </section>
 
           {/* ── Watched Movies ─────────────────────────────────────────────── */}
-          <div
-            className="rounded-2xl p-5 mb-6"
-            style={{
-              background: "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)",
-              border: "1px solid rgba(255,255,255,0.08)",
-            }}
-          >
-            <MovieCarousel
-              title="Watched"
-              icon={
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              }
-              movies={watchedMovies}
-              emptyText="No movies watched yet. Start marking movies as watched!"
-            />
-          </div>
+          <ProfileCarousel
+            title="Watched"
+            icon={<span className="text-green-500">&#9679;</span>}
+            movies={watchedMovies}
+            emptyText="No movies watched yet. Start marking movies as watched!"
+          />
 
-          {/* ── Watch Later (Watchlist) ─────────────────────────────────────── */}
-          <div
-            className="rounded-2xl p-5"
-            style={{
-              background: "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)",
-              border: "1px solid rgba(255,255,255,0.08)",
-            }}
-          >
-            <MovieCarousel
-              title="Watch Later"
-              icon={<span className="text-lg">🍿</span>}
-              movies={watchlistMovies}
-              emptyText="Your watch later list is empty. Add movies from the detail page!"
-            />
-          </div>
+          {/* ── Watch Later ────────────────────────────────────────────────── */}
+          <ProfileCarousel
+            title="Watch Later"
+            icon={<span className="text-amber-500">&#9679;</span>}
+            movies={watchlistMovies}
+            emptyText="Your watch later list is empty. Add movies from the detail page!"
+          />
         </div>
       </main>
     </div>
