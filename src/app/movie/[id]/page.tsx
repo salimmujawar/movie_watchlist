@@ -41,46 +41,19 @@ interface MovieDetail {
   similar: SimilarMovie[];
 }
 
-// ─── Demo circle reviews (static for now) ──────────────────────────────────────
+// ─── Review type ──────────────────────────────────────────────────────────────
 
-const CIRCLE_REVIEWS = [
-  {
-    initials: "RK",
-    name: "Rahul Kumar",
-    badge: "Expert",
-    badgeColor: "#22c55e",
-    review: "One of the best films in its genre. Absolutely stunning performances.",
-    stars: 5,
-    avatarBg: "linear-gradient(135deg, #e50914, #b20710)",
-  },
-  {
-    initials: "SV",
-    name: "Sneha Verma",
-    badge: "Critic",
-    badgeColor: "#3b82f6",
-    review: "Great pacing and cinematography. A few slow moments but overall brilliant.",
-    stars: 4,
-    avatarBg: "linear-gradient(135deg, #f59e0b, #d97706)",
-  },
-  {
-    initials: "MA",
-    name: "Mohammed Ali",
-    badge: "Reviewer",
-    badgeColor: "#8b5cf6",
-    review: "Rewatchable every year. The performances are timeless.",
-    stars: 5,
-    avatarBg: "linear-gradient(135deg, #06b6d4, #0284c7)",
-  },
-  {
-    initials: "PL",
-    name: "Priya Lal",
-    badge: "Reviewer",
-    badgeColor: "#8b5cf6",
-    review: "Still the gold standard. A must-watch for everyone.",
-    stars: 5,
-    avatarBg: "linear-gradient(135deg, #ec4899, #be185d)",
-  },
-];
+interface Review {
+  id: string;
+  user_id: string;
+  tmdb_id: number;
+  movie_title: string;
+  rating: number;
+  review_text: string;
+  created_at: string;
+  user_name: string;
+  user_avatar: string | null;
+}
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -280,6 +253,12 @@ export default function MovieDetailPage() {
   const [inWatchlist, setInWatchlist] = useState(false);
   const [watched, setWatched] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewText, setReviewText] = useState("");
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [existingReview, setExistingReview] = useState<Review | null>(null);
 
   // Load user profile for navbar
   useEffect(() => {
@@ -464,9 +443,107 @@ export default function MovieDetailPage() {
     }
   }, [watched, movie]);
 
+  // ── Load reviews for this movie ───────────────────────────────────────
+  const loadReviews = useCallback(async () => {
+    const tmdbId = Number(movieId);
+    if (!tmdbId) return;
+
+    const { data: reviewRows } = await supabase
+      .from("reviews")
+      .select("id, user_id, tmdb_id, movie_title, rating, review_text, created_at")
+      .eq("tmdb_id", tmdbId)
+      .order("created_at", { ascending: false });
+
+    if (!reviewRows || reviewRows.length === 0) {
+      setReviews([]);
+      return;
+    }
+
+    // Fetch user names + avatars for each reviewer
+    const userIds = Array.from(new Set(reviewRows.map((r: { user_id: string }) => r.user_id)));
+    const { data: users } = await supabase
+      .from("users")
+      .select("id, name, profile_image")
+      .in("id", userIds);
+
+    const userMap: Record<string, { name: string; profile_image: string | null }> = {};
+    if (users) {
+      for (const u of users) {
+        userMap[u.id] = { name: u.name, profile_image: u.profile_image };
+      }
+    }
+
+    const enriched: Review[] = reviewRows.map((r: { id: string; user_id: string; tmdb_id: number; movie_title: string; rating: number; review_text: string; created_at: string }) => ({
+      ...r,
+      user_name: userMap[r.user_id]?.name || "Unknown",
+      user_avatar: userMap[r.user_id]?.profile_image || null,
+    }));
+
+    setReviews(enriched);
+
+    // Check if current user already has a review
+    const userId = localStorage.getItem("cinecircle_user_id");
+    if (userId) {
+      const existing = enriched.find((r) => r.user_id === userId);
+      if (existing) {
+        setExistingReview(existing);
+      }
+    }
+  }, [movieId]);
+
+  // ── Submit / update review ──────────────────────────────────────────────
+  const handleSubmitReview = useCallback(async () => {
+    const userId = localStorage.getItem("cinecircle_user_id");
+    if (!userId || !movie || !reviewText.trim() || reviewRating === 0) return;
+
+    setSubmittingReview(true);
+    try {
+      const { error } = await supabase.from("reviews").upsert(
+        {
+          user_id: userId,
+          tmdb_id: movie.id,
+          movie_title: movie.title,
+          rating: reviewRating,
+          review_text: reviewText.trim(),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,tmdb_id" }
+      );
+
+      if (error) {
+        console.error("Review submit error:", error.message);
+        return;
+      }
+
+      // Refresh reviews list
+      await loadReviews();
+      setReviewModalOpen(false);
+      setReviewText("");
+      setReviewRating(0);
+    } finally {
+      setSubmittingReview(false);
+    }
+  }, [movie, reviewText, reviewRating, loadReviews]);
+
+  // ── Open review modal (pre-fill if editing) ─────────────────────────────
+  const openReviewModal = useCallback(() => {
+    if (existingReview) {
+      setReviewText(existingReview.review_text);
+      setReviewRating(existingReview.rating);
+    } else {
+      setReviewText("");
+      setReviewRating(0);
+    }
+    setReviewModalOpen(true);
+  }, [existingReview]);
+
   useEffect(() => {
     if (movieId) fetchMovie();
   }, [movieId, fetchMovie]);
+
+  useEffect(() => {
+    if (movieId) loadReviews();
+  }, [movieId, loadReviews]);
 
   if (loading) {
     return (
@@ -673,22 +750,6 @@ export default function MovieDetailPage() {
                 {inWatchlist ? "In Watchlist" : "Add to List"}
               </button>
 
-              <button
-                className="px-6 py-2.5 rounded-full text-sm font-semibold flex items-center gap-2 transition-all hover:bg-white/15"
-                style={{
-                  background: "rgba(255,255,255,0.1)",
-                  border: "1px solid rgba(255,255,255,0.2)",
-                }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="18" cy="5" r="3" />
-                  <circle cx="6" cy="12" r="3" />
-                  <circle cx="18" cy="19" r="3" />
-                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-                </svg>
-                Share
-              </button>
             </div>
 
             {/* ── Cast ──────────────────────────────────────────────────────── */}
@@ -734,7 +795,7 @@ export default function MovieDetailPage() {
 
           {/* ── Right Sidebar ───────────────────────────────────────────────── */}
           <div className="w-full lg:w-[340px] shrink-0 space-y-6 lg:mt-0 mt-4">
-            {/* What your circle thinks */}
+            {/* Reviews section */}
             <div
               className="rounded-2xl p-5"
               style={{
@@ -742,50 +803,94 @@ export default function MovieDetailPage() {
                 border: "1px solid rgba(255,255,255,0.08)",
               }}
             >
-              <h4 className="text-base font-semibold text-white mb-4">
-                What your circle thinks
-              </h4>
-
-              <div className="space-y-4">
-                {CIRCLE_REVIEWS.map((r) => (
-                  <div key={r.name} className="flex gap-3">
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0"
-                      style={{ background: r.avatarBg }}
-                    >
-                      {r.initials}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-sm font-medium text-white">
-                          {r.name}
-                        </span>
-                        <span
-                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
-                          style={{
-                            background: `${r.badgeColor}25`,
-                            color: r.badgeColor,
-                          }}
-                        >
-                          {r.badge}
-                        </span>
-                      </div>
-                      <p className="text-xs text-white/50 leading-relaxed mb-1">
-                        &ldquo;{r.review}&rdquo;
-                      </p>
-                      <Stars count={r.stars} />
-                    </div>
-                  </div>
-                ))}
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-base font-semibold text-white">
+                  Reviews
+                  {reviews.length > 0 && (
+                    <span className="text-white/30 text-sm font-normal ml-2">
+                      ({reviews.length})
+                    </span>
+                  )}
+                </h4>
               </div>
 
+              {reviews.length > 0 ? (
+                <div className="space-y-4">
+                  {reviews.map((r, idx) => {
+                    const initials = getInitials(r.user_name);
+                    const avatarBg = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+                    const isOwn = r.user_id === localStorage.getItem("cinecircle_user_id");
+                    const timeAgo = (() => {
+                      const diff = Date.now() - new Date(r.created_at).getTime();
+                      const mins = Math.floor(diff / 60000);
+                      if (mins < 60) return `${mins}m ago`;
+                      const hrs = Math.floor(mins / 60);
+                      if (hrs < 24) return `${hrs}h ago`;
+                      const days = Math.floor(hrs / 24);
+                      return `${days}d ago`;
+                    })();
+
+                    return (
+                      <div key={r.id} className="flex gap-3">
+                        {r.user_avatar ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img
+                            src={r.user_avatar}
+                            alt={r.user_name}
+                            className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-white/10"
+                          />
+                        ) : (
+                          <div
+                            className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0"
+                            style={{ background: avatarBg }}
+                          >
+                            {initials}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-sm font-medium text-white">
+                              {r.user_name}
+                            </span>
+                            {isOwn && (
+                              <span
+                                className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                                style={{
+                                  background: "rgba(59,130,246,0.15)",
+                                  color: "#3b82f6",
+                                }}
+                              >
+                                You
+                              </span>
+                            )}
+                            <span className="text-[10px] text-white/25 ml-auto">
+                              {timeAgo}
+                            </span>
+                          </div>
+                          <p className="text-xs text-white/50 leading-relaxed mb-1">
+                            &ldquo;{r.review_text}&rdquo;
+                          </p>
+                          <Stars count={r.rating} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <p className="text-white/30 text-sm mb-1">No reviews yet</p>
+                  <p className="text-white/20 text-xs">Be the first to share your thoughts</p>
+                </div>
+              )}
+
               <button
+                onClick={openReviewModal}
                 className="w-full mt-5 py-2.5 rounded-full text-sm font-medium text-white/70 transition-all hover:bg-white/10 hover:text-white"
                 style={{
                   border: "1px solid rgba(255,255,255,0.15)",
                 }}
               >
-                Write a review
+                {existingReview ? "Edit your review" : "Write a review"}
               </button>
             </div>
 
@@ -819,6 +924,144 @@ export default function MovieDetailPage() {
 
       {/* Bottom spacer */}
       <div className="h-20" />
+
+      {/* ── Review Modal ─────────────────────────────────────────────────── */}
+      {reviewModalOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center px-4"
+          style={{ animation: "reviewBackdropIn 0.25s ease-out" }}
+        >
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setReviewModalOpen(false)}
+          />
+
+          {/* Modal card */}
+          <div
+            className="relative w-full max-w-md rounded-2xl p-6 z-10"
+            style={{
+              background: "linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              boxShadow: "0 24px 80px rgba(0,0,0,0.6), 0 0 60px rgba(139,92,246,0.08)",
+              animation: "reviewModalIn 0.3s ease-out",
+            }}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setReviewModalOpen(false)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+
+            {/* Movie info row */}
+            <div className="flex items-center gap-3 mb-5">
+              {movie.poster_path && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={`https://image.tmdb.org/t/p/w92${movie.poster_path}`}
+                  alt={movie.title}
+                  className="w-12 h-[72px] rounded-lg object-cover"
+                />
+              )}
+              <div>
+                <h3 className="text-white font-semibold text-base leading-tight">
+                  {existingReview ? "Edit your review" : "Write a review"}
+                </h3>
+                <p className="text-white/40 text-sm mt-0.5">{movie.title}</p>
+              </div>
+            </div>
+
+            {/* Star rating */}
+            <div className="mb-5">
+              <label className="text-sm text-white/60 mb-2 block">
+                Your rating
+              </label>
+              <div className="flex items-center gap-3">
+                <StarRating
+                  rating={reviewRating}
+                  onRate={setReviewRating}
+                  size={32}
+                />
+                {reviewRating > 0 && (
+                  <span className="text-white/40 text-sm">
+                    {reviewRating}/5
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Review text */}
+            <div className="mb-5">
+              <label className="text-sm text-white/60 mb-2 block">
+                Your thoughts
+              </label>
+              <textarea
+                value={reviewText}
+                onChange={(e) => setReviewText(e.target.value)}
+                placeholder="What did you think of this movie?"
+                rows={4}
+                maxLength={1000}
+                className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/25 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                }}
+              />
+              <div className="flex justify-end mt-1">
+                <span className="text-[11px] text-white/25">
+                  {reviewText.length}/1000
+                </span>
+              </div>
+            </div>
+
+            {/* Submit button */}
+            <button
+              onClick={handleSubmitReview}
+              disabled={submittingReview || !reviewText.trim() || reviewRating === 0}
+              className="w-full py-3 rounded-full text-sm font-semibold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                background:
+                  reviewText.trim() && reviewRating > 0
+                    ? "linear-gradient(135deg, #8b5cf6, #6d28d9)"
+                    : "rgba(255,255,255,0.1)",
+                boxShadow:
+                  reviewText.trim() && reviewRating > 0
+                    ? "0 4px 20px rgba(139,92,246,0.3)"
+                    : "none",
+              }}
+            >
+              {submittingReview
+                ? "Submitting..."
+                : existingReview
+                  ? "Update Review"
+                  : "Post Review"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Review modal animations */}
+      <style jsx>{`
+        @keyframes reviewBackdropIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes reviewModalIn {
+          from {
+            opacity: 0;
+            transform: scale(0.92) translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }
