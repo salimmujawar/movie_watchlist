@@ -51,28 +51,52 @@ function Logo() {
 
 function SearchBox({ onOpen }: { onOpen: () => void }) {
   return (
-    <button
-      onClick={onOpen}
-      className="relative w-full max-w-sm group"
-    >
-      <div className="flex items-center w-full bg-white/10 border border-white/10 rounded-full py-2 pl-10 pr-4 text-sm text-white/40 transition-all group-hover:border-white/20 group-hover:bg-white/[0.12] cursor-pointer">
+    <>
+      {/* Mobile: icon-only button */}
+      <button
+        onClick={onOpen}
+        className="sm:hidden p-2 rounded-full hover:bg-white/10 transition-colors"
+      >
         <svg
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40"
-          width="16"
-          height="16"
+          width="20"
+          height="20"
           viewBox="0 0 24 24"
           fill="none"
-          stroke="currentColor"
+          stroke="white"
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
+          className="opacity-70"
         >
           <circle cx="11" cy="11" r="8" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
-        <span>Describe your movie vibe…</span>
-      </div>
-    </button>
+      </button>
+
+      {/* Desktop: full search bar */}
+      <button
+        onClick={onOpen}
+        className="relative w-full max-w-sm group hidden sm:block"
+      >
+        <div className="flex items-center w-full bg-white/10 border border-white/10 rounded-full py-2 pl-10 pr-4 text-sm text-white/40 transition-all group-hover:border-white/20 group-hover:bg-white/[0.12] cursor-pointer">
+          <svg
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <span>Describe your movie vibe…</span>
+        </div>
+      </button>
+    </>
   );
 }
 
@@ -349,9 +373,9 @@ export default function Navbar({ user }: { user: UserProfile | null }) {
           <Logo />
 
           {/* Center: Discover + Search */}
-          <div className="flex-1 flex items-center justify-center gap-3 px-4">
+          <div className="flex-1 flex items-center justify-center gap-2 sm:gap-3 px-2 sm:px-4">
             <button
-              className="px-4 py-1.5 rounded-full text-sm font-medium transition-all shrink-0"
+              className="hidden sm:block px-4 py-1.5 rounded-full text-sm font-medium transition-all shrink-0"
               style={{
                 background: "rgba(229, 9, 20, 0.15)",
                 color: "#e50914",
