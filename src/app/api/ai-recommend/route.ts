@@ -10,13 +10,17 @@ const supabase = createClient(
 const N8N_WEBHOOK_URL =
   "https://zyrax.app.n8n.cloud/webhook/334f875c-6c15-4851-8053-5e4826e2ed1a";
 
+function getTodayDate(): string {
+  return new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+}
+
 /**
  * GET /api/ai-recommend?user_id=<uuid>
  *
- * 1. Reads the user's onboarding movie_preferences from Supabase
- * 2. Derives preferred genres, liked movies, avoid genres
- * 3. Sends the payload to the N8N AI webhook
- * 4. Returns the recommendation response
+ * Flow:
+ *  1. Check if today's cached recommendation exists for this user
+ *  2. If cached → return it immediately (no webhook call)
+ *  3. If not cached → read preferences, call N8N, cache response, return it
  */
 export async function GET(request: NextRequest) {
   const userId = new URL(request.url).searchParams.get("user_id");
@@ -28,14 +32,30 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const today = getTodayDate();
+
   try {
-    // ── Step 1: Load user's onboarding preferences ────────────────
+    // ── Step 1: Check daily cache ─────────────────────────────────
+    const { data: cached, error: cacheError } = await supabase
+      .from("ai_recommendations_cache")
+      .select("response_data")
+      .eq("user_id", userId)
+      .eq("fetch_date", today)
+      .single();
+
+    if (!cacheError && cached?.response_data) {
+      return NextResponse.json({
+        ...cached.response_data,
+        source: "cache",
+      });
+    }
+
+    // ── Step 2: Load user's onboarding preferences ────────────────
     const { data: prefs } = await supabase
       .from("movie_preferences")
       .select("movie_title, movie_genre, preference")
       .eq("user_id", userId);
 
-    // Build preference payload from swipe data
     const likedGenres: Record<string, number> = {};
     const dislikedGenres: Record<string, number> = {};
     const favouriteMovies: { title: string }[] = [];
@@ -56,7 +76,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Derive preferred genres (liked >= 1 time) and avoid genres (only disliked)
     const preferredGenres = Object.keys(likedGenres).sort(
       (a, b) => likedGenres[b] - likedGenres[a]
     );
@@ -64,7 +83,7 @@ export async function GET(request: NextRequest) {
       (g) => !likedGenres[g]
     );
 
-    // ── Step 2: Build the N8N payload ─────────────────────────────
+    // ── Step 3: Build the N8N payload ─────────────────────────────
     const payload = {
       preferences: {
         preferred_genres:
@@ -84,7 +103,7 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    // ── Step 3: Call N8N webhook ───────────────────────────────────
+    // ── Step 4: Call N8N webhook ───────────────────────────────────
     const webhookRes = await fetch(N8N_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -101,8 +120,28 @@ export async function GET(request: NextRequest) {
 
     const data = await webhookRes.json();
 
-    // ── Step 4: Return the response ───────────────────────────────
-    return NextResponse.json(data);
+    // ── Step 5: Cache the response for today ──────────────────────
+    const { error: insertError } = await supabase
+      .from("ai_recommendations_cache")
+      .upsert(
+        {
+          user_id: userId,
+          fetch_date: today,
+          response_data: data,
+        },
+        { onConflict: "user_id,fetch_date" }
+      );
+
+    if (insertError) {
+      // Log but don't fail — the response is still valid
+      console.error("AI recommendation cache insert error:", insertError.message);
+    }
+
+    // ── Step 6: Return fresh response ─────────────────────────────
+    return NextResponse.json({
+      ...data,
+      source: "n8n",
+    });
   } catch (err) {
     console.error("AI recommend error:", err);
     return NextResponse.json(
