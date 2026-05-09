@@ -230,17 +230,17 @@ export default function ProfilePage() {
     if (watchlist) setWatchlistMovies(watchlist);
 
     // Load follower/following counts
-    const { count: fwerCount } = await supabase
+    const { data: followerRows } = await supabase
       .from("follows")
-      .select("id", { count: "exact", head: true })
+      .select("id")
       .eq("following_id", userId);
-    if (fwerCount !== null) setFollowerCount(fwerCount);
+    setFollowerCount(followerRows?.length ?? 0);
 
-    const { count: fwingCount } = await supabase
+    const { data: followingRows } = await supabase
       .from("follows")
-      .select("id", { count: "exact", head: true })
+      .select("id")
       .eq("follower_id", userId);
-    if (fwingCount !== null) setFollowingCount(fwingCount);
+    setFollowingCount(followingRows?.length ?? 0);
 
     setLoading(false);
   }, [router]);
