@@ -381,8 +381,26 @@ export default function MovieDetailPage() {
           rating: newRating,
         });
       }
+
+      // Also sync to reviews table if a review exists
+      if (existingReview && newRating > 0) {
+        await supabase
+          .from("reviews")
+          .update({ rating: newRating, updated_at: new Date().toISOString() })
+          .eq("user_id", userId)
+          .eq("tmdb_id", movie.id);
+        setExistingReview({ ...existingReview, rating: newRating });
+        // Update the review in the local list
+        setReviews((prev) =>
+          prev.map((r) =>
+            r.user_id === userId && r.tmdb_id === movie.id
+              ? { ...r, rating: newRating }
+              : r
+          )
+        );
+      }
     },
-    [userRating, movie]
+    [userRating, movie, existingReview]
   );
 
   // ── Toggle watchlist ─────────────────────────────────────────────────
@@ -481,12 +499,13 @@ export default function MovieDetailPage() {
 
     setReviews(enriched);
 
-    // Check if current user already has a review
+    // Check if current user already has a review — sync rating to "Your rating"
     const userId = localStorage.getItem("cinecircle_user_id");
     if (userId) {
       const existing = enriched.find((r) => r.user_id === userId);
       if (existing) {
         setExistingReview(existing);
+        setUserRating((prev) => (prev === 0 ? existing.rating : prev));
       }
     }
   }, [movieId]);
@@ -513,6 +532,31 @@ export default function MovieDetailPage() {
       if (error) {
         console.error("Review submit error:", error.message);
         return;
+      }
+
+      // Sync review rating → "Your rating" section + movie_preferences
+      setUserRating(reviewRating);
+      const { data: existing } = await supabase
+        .from("movie_preferences")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("tmdb_id", movie.id)
+        .single();
+
+      if (existing) {
+        await supabase
+          .from("movie_preferences")
+          .update({ rating: reviewRating })
+          .eq("id", existing.id);
+      } else {
+        await supabase.from("movie_preferences").insert({
+          user_id: userId,
+          movie_title: movie.title,
+          movie_genre: movie.genres,
+          tmdb_id: movie.id,
+          preference: "rated",
+          rating: reviewRating,
+        });
       }
 
       // Refresh reviews list
