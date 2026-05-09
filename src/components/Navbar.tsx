@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import SearchModal from "./SearchModal";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -46,31 +47,32 @@ function Logo() {
   );
 }
 
-// ─── Search Box ─────────────────────────────────────────────────────────────
+// ─── Search Box (trigger for modal) ─────────────────────────────────────────
 
-function SearchBox() {
+function SearchBox({ onOpen }: { onOpen: () => void }) {
   return (
-    <div className="relative w-full max-w-sm">
-      <svg
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40"
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <circle cx="11" cy="11" r="8" />
-        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-      </svg>
-      <input
-        type="text"
-        placeholder="Search movies, TV shows..."
-        className="w-full bg-white/10 border border-white/10 rounded-full py-2 pl-10 pr-4 text-sm text-white placeholder-white/40 outline-none focus:border-white/30 focus:bg-white/15 transition-all"
-      />
-    </div>
+    <button
+      onClick={onOpen}
+      className="relative w-full max-w-sm group"
+    >
+      <div className="flex items-center w-full bg-white/10 border border-white/10 rounded-full py-2 pl-10 pr-4 text-sm text-white/40 transition-all group-hover:border-white/20 group-hover:bg-white/[0.12] cursor-pointer">
+        <svg
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <span>Describe your movie vibe…</span>
+      </div>
+    </button>
   );
 }
 
@@ -314,46 +316,66 @@ function NotificationBell() {
 
 export default function Navbar({ user }: { user: UserProfile | null }) {
   const firstName = user?.first_name || user?.name?.split(" ")[0] || "User";
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const openSearch = useCallback(() => setSearchOpen(true), []);
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
+
+  // Cmd/Ctrl + K keyboard shortcut
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   return (
-    <nav
-      className="fixed top-0 left-0 right-0 z-50 px-4 sm:px-6 py-3"
-      style={{
-        background: "linear-gradient(180deg, rgba(10,10,10,0.95) 0%, rgba(10,10,10,0.8) 100%)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-      }}
-    >
-      <div className="max-w-7xl mx-auto flex items-center">
-        {/* Left: Logo */}
-        <Logo />
+    <>
+      <nav
+        className="fixed top-0 left-0 right-0 z-50 px-4 sm:px-6 py-3"
+        style={{
+          background: "linear-gradient(180deg, rgba(10,10,10,0.95) 0%, rgba(10,10,10,0.8) 100%)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+        }}
+      >
+        <div className="max-w-7xl mx-auto flex items-center">
+          {/* Left: Logo */}
+          <Logo />
 
-        {/* Center: Discover + Search */}
-        <div className="flex-1 flex items-center justify-center gap-3 px-4">
-          <button
-            className="px-4 py-1.5 rounded-full text-sm font-medium transition-all shrink-0"
-            style={{
-              background: "rgba(229, 9, 20, 0.15)",
-              color: "#e50914",
-              border: "1px solid rgba(229, 9, 20, 0.3)",
-            }}
-          >
-            Discover
-          </button>
-          <SearchBox />
+          {/* Center: Discover + Search */}
+          <div className="flex-1 flex items-center justify-center gap-3 px-4">
+            <button
+              className="px-4 py-1.5 rounded-full text-sm font-medium transition-all shrink-0"
+              style={{
+                background: "rgba(229, 9, 20, 0.15)",
+                color: "#e50914",
+                border: "1px solid rgba(229, 9, 20, 0.3)",
+              }}
+            >
+              Discover
+            </button>
+            <SearchBox onOpen={openSearch} />
+          </div>
+
+          {/* Right: Welcome + Profile + Bell */}
+          <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+            <span className="text-white/70 text-sm hidden md:block whitespace-nowrap">
+              Welcome, <span className="text-white font-medium">{firstName}</span>
+            </span>
+
+            <ProfileMenu user={user} />
+            <NotificationBell />
+          </div>
         </div>
+      </nav>
 
-        {/* Right: Welcome + Profile + Bell */}
-        <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-          <span className="text-white/70 text-sm hidden md:block whitespace-nowrap">
-            Welcome, <span className="text-white font-medium">{firstName}</span>
-          </span>
-
-          <ProfileMenu user={user} />
-          <NotificationBell />
-        </div>
-      </div>
-    </nav>
+      <SearchModal isOpen={searchOpen} onClose={closeSearch} />
+    </>
   );
 }
