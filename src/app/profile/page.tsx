@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import Navbar, { UserProfile } from "@/components/Navbar";
@@ -176,6 +176,7 @@ function ProfileCarousel({
 
 export default function ProfilePage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [watchedMovies, setWatchedMovies] = useState<WatchedMovie[]>([]);
@@ -245,7 +246,17 @@ export default function ProfilePage() {
     setLoading(false);
   }, [router]);
 
-  useEffect(() => { loadProfile(); }, [loadProfile]);
+  // Re-fetch every time we navigate to this page (pathname changes trigger re-render)
+  useEffect(() => { loadProfile(); }, [loadProfile, pathname]);
+
+  // Also re-fetch when tab becomes visible (e.g. switching back from another tab)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") loadProfile();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [loadProfile]);
 
   if (loading) {
     return (

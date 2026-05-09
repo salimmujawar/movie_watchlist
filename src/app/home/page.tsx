@@ -777,26 +777,37 @@ function CineMatesCarousel({ currentUserId }: { currentUserId: string | null }) 
   };
 
   const toggleFollow = async (mate: CineMate) => {
-    if (!currentUserId || !mate.userId) return;
+    if (!currentUserId || !mate.userId) {
+      console.warn("[CineMates] toggleFollow skipped — currentUserId:", currentUserId, "mate.userId:", mate.userId);
+      return;
+    }
     const mateId = mate.userId;
     setFollowLoading((prev) => ({ ...prev, [mateId]: true }));
 
-    const alreadyFollowing = !!followState[mateId];
+    try {
+      const alreadyFollowing = !!followState[mateId];
 
-    if (alreadyFollowing) {
-      await fetch("/api/follow", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ follower_id: currentUserId, following_id: mateId }),
-      });
-      setFollowState((prev) => ({ ...prev, [mateId]: false }));
-    } else {
-      await fetch("/api/follow", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ follower_id: currentUserId, following_id: mateId }),
-      });
-      setFollowState((prev) => ({ ...prev, [mateId]: true }));
+      if (alreadyFollowing) {
+        const res = await fetch("/api/follow", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ follower_id: currentUserId, following_id: mateId }),
+        });
+        const json = await res.json();
+        console.log("[CineMates] unfollow response:", json);
+        if (json.success) setFollowState((prev) => ({ ...prev, [mateId]: false }));
+      } else {
+        const res = await fetch("/api/follow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ follower_id: currentUserId, following_id: mateId }),
+        });
+        const json = await res.json();
+        console.log("[CineMates] follow response:", json);
+        if (json.success) setFollowState((prev) => ({ ...prev, [mateId]: true }));
+      }
+    } catch (err) {
+      console.error("[CineMates] follow toggle error:", err);
     }
 
     setFollowLoading((prev) => ({ ...prev, [mateId]: false }));
