@@ -418,16 +418,16 @@ function CineMateCard({
 }) {
   return (
     <div
-      className="shrink-0 w-[220px] sm:w-[240px] rounded-xl p-4 group transition-all hover:bg-white/[0.06]"
+      className="shrink-0 w-[220px] sm:w-[240px] h-[280px] rounded-xl p-4 flex flex-col group transition-all hover:bg-white/[0.06]"
       style={{
         background: "rgba(255,255,255,0.03)",
         border: "1px solid rgba(255,255,255,0.06)",
       }}
     >
-      {/* Avatar + Name */}
-      <div className="flex items-center gap-3 mb-3">
+      {/* Avatar + Name — fixed height */}
+      <div className="flex items-center gap-3 mb-3 shrink-0">
         <div
-          className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
+          className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0"
           style={{ background: mate.avatarBg }}
         >
           {mate.initials}
@@ -438,17 +438,17 @@ function CineMateCard({
         </div>
       </div>
 
-      {/* Bio */}
-      <p className="text-white/50 text-xs leading-relaxed mb-3 line-clamp-2">
+      {/* Bio — clamped to 2 lines */}
+      <p className="text-white/50 text-xs leading-relaxed mb-2 shrink-0 overflow-hidden" style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
         &ldquo;{mate.bio}&rdquo;
       </p>
 
-      {/* Tags */}
-      <div className="flex flex-wrap gap-1.5 mb-3">
+      {/* Tags — single row, overflow hidden */}
+      <div className="flex gap-1.5 mb-2 shrink-0 overflow-hidden">
         {mate.tags.map((tag) => (
           <span
             key={tag}
-            className="text-[10px] font-medium px-2 py-0.5 rounded-full text-white/60"
+            className="text-[10px] font-medium px-2 py-0.5 rounded-full text-white/60 whitespace-nowrap shrink-0"
             style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
           >
             {tag}
@@ -457,8 +457,8 @@ function CineMateCard({
       </div>
 
       {/* Stats row */}
-      <div className="flex items-center gap-3 mb-3 text-xs text-white/40">
-        <span className="flex items-center gap-1">
+      <div className="flex items-center gap-3 mb-2 text-xs text-white/40 shrink-0">
+        <span className="flex items-center gap-1 whitespace-nowrap">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <rect x="2" y="3" width="20" height="14" rx="2" />
             <line x1="8" y1="21" x2="16" y2="21" />
@@ -466,7 +466,7 @@ function CineMateCard({
           </svg>
           {mate.watched} Watched
         </span>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1 whitespace-nowrap">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
             <circle cx="9" cy="7" r="4" />
@@ -476,17 +476,17 @@ function CineMateCard({
       </div>
 
       {/* AI Signal badge */}
-      <div className="flex items-center gap-1.5 mb-4">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round">
+      <div className="flex items-center gap-1.5 mb-auto shrink-0">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" className="shrink-0">
           <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
         </svg>
-        <span className="text-[10px] font-medium text-purple-400">{mate.aiSignal}</span>
+        <span className="text-[10px] font-medium text-purple-400 truncate">{mate.aiSignal}</span>
       </div>
 
-      {/* Follow button */}
+      {/* Follow button — pinned to bottom */}
       <button
         onClick={onToggleFollow}
-        className="w-full py-2 rounded-full text-xs font-semibold transition-all"
+        className="w-full py-2 rounded-full text-xs font-semibold transition-all shrink-0 mt-3"
         style={{
           background: isFollowing
             ? "rgba(255,255,255,0.06)"
