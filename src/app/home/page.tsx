@@ -15,25 +15,19 @@ interface CircleMovie {
   poster: string;
 }
 
-const CIRCLE_MOVIES: CircleMovie[] = [
-  { title: "Dune: Part Two", year: 2024, rating: 4.5, friendsCount: 12, poster: "https://image.tmdb.org/t/p/w500/8b8R8l88Qje9dn9OE8PY05Nez7S.jpg" },
-  { title: "Oppenheimer", year: 2023, rating: 4.7, friendsCount: 18, poster: "https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg" },
-  { title: "Deadpool & Wolverine", year: 2024, rating: 4.2, friendsCount: 9, poster: "https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg" },
-  { title: "Inside Out 2", year: 2024, rating: 4.3, friendsCount: 15, poster: "https://image.tmdb.org/t/p/w500/vpnVM9B6NMmQpWeZvzLvDESb2QY.jpg" },
-  { title: "The Batman", year: 2022, rating: 4.4, friendsCount: 11, poster: "https://image.tmdb.org/t/p/w500/74xTEgt7R36Fpooo50r9T25onhq.jpg" },
-  { title: "Spider-Verse", year: 2023, rating: 4.8, friendsCount: 21, poster: "https://image.tmdb.org/t/p/w500/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg" },
-  { title: "Interstellar", year: 2014, rating: 4.6, friendsCount: 16, poster: "https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg" },
-  { title: "John Wick 4", year: 2023, rating: 4.1, friendsCount: 8, poster: "https://image.tmdb.org/t/p/w500/vZloFAK7NmvMGKE7VkF5UHaz0I.jpg" },
-  { title: "Barbie", year: 2023, rating: 3.9, friendsCount: 14, poster: "https://image.tmdb.org/t/p/w500/iuFNMS8U5cb6xfzi51Dbkovj7vM.jpg" },
-  { title: "Killers of the Flower Moon", year: 2023, rating: 4.4, friendsCount: 7, poster: "https://image.tmdb.org/t/p/w500/dB6Krk806zeqd0YNp2ngQ9zXteH.jpg" },
-];
+// Fisher-Yates shuffle for randomizing circle movies
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
 
 function CircleMovieCard({ movie }: { movie: CircleMovie }) {
-  return (
-    <div
-      className="group cursor-pointer"
-      style={{ width: 180, minWidth: 180, maxWidth: 180, flexShrink: 0, overflow: "hidden" }}
-    >
+  const cardContent = (
+    <>
       {/* Poster */}
       <div
         className="relative rounded-xl overflow-hidden"
@@ -64,7 +58,7 @@ function CircleMovieCard({ movie }: { movie: CircleMovie }) {
           <svg width="12" height="12" viewBox="0 0 24 24" fill="#facc15">
             <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
           </svg>
-          <span className="text-white">{movie.rating}</span>
+          <span className="text-white">{movie.rating.toFixed(1)}</span>
         </div>
 
         {/* Friends' Choice badge at bottom */}
@@ -104,11 +98,32 @@ function CircleMovieCard({ movie }: { movie: CircleMovie }) {
               />
             ))}
           </div>
-          <span className="text-white/40 text-[11px]">+{movie.friendsCount - 3}</span>
+          {movie.friendsCount > 3 && (
+            <span className="text-white/40 text-[11px]">+{movie.friendsCount - 3}</span>
+          )}
         </div>
         <p className="text-white text-sm font-medium truncate">{movie.title}</p>
-        <p className="text-white/40 text-xs truncate">{movie.friendsCount} friends liked this!</p>
+        <p className="text-white/40 text-xs truncate">
+          {movie.friendsCount === 1
+            ? "1 friend watched this"
+            : `${movie.friendsCount} friends watched this`}
+        </p>
       </div>
+    </>
+  );
+
+  const cardStyle: React.CSSProperties = {
+    width: 180, minWidth: 180, maxWidth: 180,
+    flexShrink: 0, overflow: "hidden", display: "block",
+  };
+
+  return movie.tmdbId ? (
+    <Link href={`/movie/${movie.tmdbId}`} className="group cursor-pointer" style={cardStyle}>
+      {cardContent}
+    </Link>
+  ) : (
+    <div className="group cursor-pointer" style={cardStyle}>
+      {cardContent}
     </div>
   );
 }
@@ -117,12 +132,12 @@ function FromYourCircleCarousel({ currentUserId }: { currentUserId: string | nul
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
-  const [movies, setMovies] = useState<CircleMovie[]>(CIRCLE_MOVIES);
+  const [movies, setMovies] = useState<CircleMovie[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   // Load movies watched by people the user follows
   useEffect(() => {
-    if (!currentUserId) return;
+    if (!currentUserId) { setLoaded(true); return; }
     async function loadCircleMovies() {
       // Get IDs of users I follow
       const { data: follows } = await supabase
@@ -131,19 +146,18 @@ function FromYourCircleCarousel({ currentUserId }: { currentUserId: string | nul
         .eq("follower_id", currentUserId);
 
       if (!follows || follows.length === 0) {
+        setMovies([]);
         setLoaded(true);
-        return; // No follows yet — keep showing default data
+        return; // No follows — section will be hidden
       }
 
       const followingIds = follows.map((f: { following_id: string }) => f.following_id);
 
-      // Get watched movies from followed users
+      // Get ALL watched movies from followed users (no limit — we'll shuffle & pick)
       const { data: circleWatched } = await supabase
         .from("watched_movies")
         .select("tmdb_id, movie_title, poster_path, user_id")
-        .in("user_id", followingIds)
-        .order("watched_at", { ascending: false })
-        .limit(20);
+        .in("user_id", followingIds);
 
       if (circleWatched && circleWatched.length > 0) {
         // Deduplicate by tmdb_id — count how many friends watched each
@@ -163,16 +177,17 @@ function FromYourCircleCarousel({ currentUserId }: { currentUserId: string | nul
           ([tmdbId, info]) => ({
             tmdbId: Number(tmdbId),
             title: info.title,
-            year: 0, // not critical for display
-            rating: 4.0 + Math.random() * 0.8, // simulated rating
+            year: 0,
+            rating: +(4.0 + Math.random() * 0.8).toFixed(1),
             friendsCount: info.friendIds.size,
             poster: info.poster,
           })
         );
 
-        // Sort by most friends, then take top 10
-        circleMovies.sort((a, b) => b.friendsCount - a.friendsCount);
-        setMovies(circleMovies.slice(0, 10));
+        // Shuffle randomly and pick up to 10
+        setMovies(shuffleArray(circleMovies).slice(0, 10));
+      } else {
+        setMovies([]);
       }
       setLoaded(true);
     }
@@ -199,6 +214,12 @@ function FromYourCircleCarousel({ currentUserId }: { currentUserId: string | nul
     if (!el) return;
     el.scrollBy({ left: dir === "left" ? -380 : 380, behavior: "smooth" });
   };
+
+  // Don't render the section until data has loaded
+  if (!loaded) return null;
+
+  // Only show when user actually follows people and there are movies
+  if (movies.length === 0) return null;
 
   return (
     <section className="py-6">
@@ -241,7 +262,7 @@ function FromYourCircleCarousel({ currentUserId }: { currentUserId: string | nul
         }}
       >
         {movies.map((movie) => (
-          <CircleMovieCard key={movie.title} movie={movie} />
+          <CircleMovieCard key={movie.tmdbId || movie.title} movie={movie} />
         ))}
       </div>
     </section>
